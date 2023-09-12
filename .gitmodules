@@ -1,0 +1,3 @@
+[submodule "lib/LM92"]
+	path = lib/LM92
+	url = https://github.com/kerrydwong/LM92
