@@ -12,8 +12,14 @@ void initializeDS3231(void) {
 
   // Set alarm 1 to fire at one-second intervals
   ds3231.turnOffAlarm(1);
-  ds3231.setA1Time(alarmDay, alarmHour, alarmMinute, alarmSecond, alarmBits,
-                   alarmDayIsDay, alarmH12, alarmPM);
+  ds3231.setA1Time(alarmDay,
+                   alarmHour,
+                   alarmMinute,
+                   alarmSecond,
+                   alarmBits,
+                   alarmDayIsDay,
+                   alarmH12,
+                   alarmPM);
   // enable Alarm 1 interrupts
   ds3231.turnOnAlarm(1);
   // clear Alarm 1 flag
