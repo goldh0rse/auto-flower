@@ -10,6 +10,7 @@
             "includePath": [
                 "/Users/klas/repos/auto-flower/include",
                 "/Users/klas/repos/auto-flower/src",
+                "/Users/klas/repos/auto-flower/lib/LM92",
                 "/Users/klas/repos/auto-flower/.pio/libdeps/env1/U8g2/src",
                 "/Users/klas/repos/auto-flower/.pio/libdeps/env1/DS3231",
                 "/Users/klas/repos/auto-flower/.pio/libdeps/env1/Adafruit BusIO",
@@ -208,7 +209,6 @@
                 "/Users/klas/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/qio_opi/include",
                 "/Users/klas/.platformio/packages/framework-arduinoespressif32/cores/esp32",
                 "/Users/klas/.platformio/packages/framework-arduinoespressif32/variants/arduino_nano_nora",
-                "/Users/klas/repos/auto-flower/lib/LM92",
                 "/Users/klas/.platformio/packages/framework-arduinoespressif32/libraries/ArduinoOTA/src",
                 "/Users/klas/.platformio/packages/framework-arduinoespressif32/libraries/AsyncUDP/src",
                 "/Users/klas/.platformio/packages/framework-arduinoespressif32/libraries/BLE/src",
@@ -247,6 +247,7 @@
                 "path": [
                     "/Users/klas/repos/auto-flower/include",
                     "/Users/klas/repos/auto-flower/src",
+                    "/Users/klas/repos/auto-flower/lib/LM92",
                     "/Users/klas/repos/auto-flower/.pio/libdeps/env1/U8g2/src",
                     "/Users/klas/repos/auto-flower/.pio/libdeps/env1/DS3231",
                     "/Users/klas/repos/auto-flower/.pio/libdeps/env1/Adafruit BusIO",
@@ -445,7 +446,6 @@
                     "/Users/klas/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/qio_opi/include",
                     "/Users/klas/.platformio/packages/framework-arduinoespressif32/cores/esp32",
                     "/Users/klas/.platformio/packages/framework-arduinoespressif32/variants/arduino_nano_nora",
-                    "/Users/klas/repos/auto-flower/lib/LM92",
                     "/Users/klas/.platformio/packages/framework-arduinoespressif32/libraries/ArduinoOTA/src",
                     "/Users/klas/.platformio/packages/framework-arduinoespressif32/libraries/AsyncUDP/src",
                     "/Users/klas/.platformio/packages/framework-arduinoespressif32/libraries/BLE/src",
