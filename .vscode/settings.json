@@ -1,0 +1,4 @@
+{
+	"cmake.sourceDirectory": "/Users/klas/repos/auto-flower/.pio/libdeps/env1/Adafruit BusIO",
+	"C_Cpp.default.compilerPath": "/Users/klas/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc"
+}

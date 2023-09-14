@@ -1,11 +1,13 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
 
-#include <U8g2lib.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
-extern U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8;
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
+extern Adafruit_SSD1306 display;
 void initDisplay(void);
-void draw(void);
-
 #endif

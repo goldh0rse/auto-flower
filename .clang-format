@@ -1,11 +1,13 @@
 ---
 Language:        Cpp
+Standard: c++14
 BasedOnStyle:    LLVM
 
 # Alignment
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignOperands:   false
+AlignAfterOpenBracket: Align
 AlignTrailingComments: true
 
 # Breaks
@@ -14,8 +16,8 @@ BreakBeforeTernaryOperators: true
 BreakConstructorInitializersBeforeComma: false
 
 # Indentation
-IndentWidth:     2
-TabWidth:        2
+IndentWidth:     4
+TabWidth:        4
 UseTab:          Never
 
 # Line Length
@@ -24,7 +26,6 @@ ColumnLimit:     80
 # Function arguments one per line when the function has many arguments
 BinPackArguments: false
 BinPackParameters: false
-
-# Disallow multiple arguments on the next line
 AllowAllArgumentsOnNextLine: false
 AllowAllConstructorInitializersOnNextLine: false
+
