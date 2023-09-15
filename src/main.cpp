@@ -73,12 +73,12 @@ void loop() {
     printResult("OPT3001", result);
 
     float tempC = ss.getTemp();
-    uint16_t capread = ss.touchRead(0);
+    // uint16_t capread = ss.touchRead(0);
     Serial.print("Temperature: ");
     Serial.print(tempC);
     Serial.println("*C");
-    Serial.print("Capacitive: ");
-    Serial.println(capread);
+    // Serial.print("Capacitive: ");
+    // Serial.println(capread);
     Serial.println("----");
 
     byte error, address;
