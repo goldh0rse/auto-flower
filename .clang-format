@@ -1,6 +1,5 @@
 ---
 Language:        Cpp
-Standard: c++14
 BasedOnStyle:    LLVM
 
 # Alignment

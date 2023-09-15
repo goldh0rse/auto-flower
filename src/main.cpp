@@ -1,13 +1,15 @@
 #include "display.h"
+#include "seesaw.h"
 #include <Arduino.h>
 #include <ClosedCube_OPT3001.h>
 #include <LM92.h>
 #include <Wire.h>
 
 #define OPT3001_ADDRESS 0x45
-/* Conversion factor us => S */
-#define uS_TO_S_FACTOR 1000000ULL
-#define TIME_TO_SLEEP 10 /* Time ESP32 will go to sleep (in seconds) */
+#define SS_ADDRESS 0x36
+#define uS_TO_S_FACTOR 1000000ULL // Conversion factor us
+#define TIME_TO_SLEEP 10          // Time ESP32 will go to sleep (in seconds)
+#define ANALOGIN 2
 
 RTC_DATA_ATTR int bootCount = 0;
 
@@ -17,6 +19,7 @@ void printResult(String text, OPT3001 result);
 void printError(String text, OPT3001_ErrorCode error);
 void configureSensor(void);
 
+Adafruit_seesaw ss;
 LM92 lm92(1, 0);
 ClosedCube_OPT3001 opt3001;
 
@@ -25,6 +28,9 @@ void setup() {
     pinMode(SCL, PULLUP);
 
     Serial.begin(9600);
+    while (!Serial)
+        delay(10); // wait until serial port is opened
+
     lm92.ResultInCelsius = true;
     lm92.enableFaultQueue(true);
 
@@ -48,16 +54,31 @@ void setup() {
     printResult("High-Limit", opt3001.readHighLimit());
     printResult("Low-Limit", opt3001.readLowLimit());
     Serial.println("----");
+
+    if (!ss.begin(SS_ADDRESS)) {
+        Serial.println("ERROR! seesaw not found");
+        while (1)
+            delay(1);
+    } else {
+        Serial.print("seesaw started!");
+    }
 }
 
 void loop() {
     delay(5000); // Take some time to open up the Serial Monitor
 
+    Serial.print("LM92: ");
     Serial.println(lm92.readTemperature());
-    printResult("High-Limit", opt3001.readHighLimit());
-    printResult("Low-Limit", opt3001.readLowLimit());
     OPT3001 result = opt3001.readResult();
     printResult("OPT3001", result);
+
+    float tempC = ss.getTemp();
+    uint16_t capread = ss.touchRead(0);
+    Serial.print("Temperature: ");
+    Serial.print(tempC);
+    Serial.println("*C");
+    Serial.print("Capacitive: ");
+    Serial.println(capread);
     Serial.println("----");
 
     byte error, address;
@@ -116,7 +137,6 @@ void print_wakeup_reason() {
     default:
         Serial.printf("Wakeup was not caused by deep sleep: %d\n",
                       wakeup_reason);
-        break;
     }
 }
 

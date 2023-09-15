@@ -1,4 +1,29 @@
 {
 	"cmake.sourceDirectory": "/Users/klas/repos/auto-flower/.pio/libdeps/env1/Adafruit BusIO",
-	"C_Cpp.default.compilerPath": "/Users/klas/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc"
+	"C_Cpp.default.compilerPath": "/Users/klas/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc",
+	"files.associations": {
+		"optional": "cpp",
+		"istream": "cpp",
+		"ostream": "cpp",
+		"system_error": "cpp",
+		"array": "cpp",
+		"functional": "cpp",
+		"tuple": "cpp",
+		"type_traits": "cpp",
+		"utility": "cpp",
+		"deque": "cpp",
+		"string": "cpp",
+		"unordered_map": "cpp",
+		"unordered_set": "cpp",
+		"vector": "cpp",
+		"string_view": "cpp",
+		"initializer_list": "cpp",
+		"*.tcc": "cpp",
+		"fstream": "cpp",
+		"iosfwd": "cpp",
+		"limits": "cpp",
+		"sstream": "cpp",
+		"streambuf": "cpp"
+	},
+	"C_Cpp.errorSquiggles": "disabled"
 }
