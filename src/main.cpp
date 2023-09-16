@@ -1,23 +1,6 @@
-#include "display.h"
-#include "seesaw.h"
-#include <Arduino.h>
-#include <ClosedCube_OPT3001.h>
-#include <LM92.h>
-#include <Wire.h>
-
-#define OPT3001_ADDRESS 0x45
-#define SS_ADDRESS 0x36
-#define uS_TO_S_FACTOR 1000000ULL // Conversion factor us
-#define TIME_TO_SLEEP 10          // Time ESP32 will go to sleep (in seconds)
-#define ANALOGIN 2
+#include "main.h"
 
 RTC_DATA_ATTR int bootCount = 0;
-
-void print_wakeup_reason(void);
-void goToSleep(void);
-void printResult(String text, OPT3001 result);
-void printError(String text, OPT3001_ErrorCode error);
-void configureSensor(void);
 
 Adafruit_seesaw ss;
 LM92 lm92(1, 0);
@@ -27,86 +10,77 @@ void setup() {
     pinMode(SDA, PULLUP);
     pinMode(SCL, PULLUP);
 
+#ifdef DEBUG_MODE
     Serial.begin(9600);
     while (!Serial)
         delay(10); // wait until serial port is opened
+    initDisplay();
+#endif
 
     lm92.ResultInCelsius = true;
     lm92.enableFaultQueue(true);
 
-    initDisplay();
     display.clearDisplay();
     display.setTextColor(WHITE);
-
-    display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0, 0);
     display.print("Hello!");
     display.display();
 
     opt3001.begin(OPT3001_ADDRESS);
-    Serial.print("OPT3001 Manufacturer ID");
-    Serial.println(opt3001.readManufacturerID());
-    Serial.print("OPT3001 Device ID");
-    Serial.println(opt3001.readDeviceID());
+    printSerial("OPT3001 Manufacturer ID", false);
+    printSerial(opt3001.readManufacturerID());
+    printSerial("OPT3001 Device ID", false);
+    printSerial(opt3001.readDeviceID());
 
     configureSensor();
     printResult("High-Limit", opt3001.readHighLimit());
     printResult("Low-Limit", opt3001.readLowLimit());
-    Serial.println("----");
+    printSerial("----");
 
     if (!ss.begin(SS_ADDRESS)) {
-        Serial.println("ERROR! seesaw not found");
+        printSerial("ERROR! seesaw not found");
         while (1)
             delay(1);
     } else {
-        Serial.print("seesaw started!");
+        printSerial("seesaw started!");
     }
 }
 
 void loop() {
-    delay(5000); // Take some time to open up the Serial Monitor
+    delay(2000); // Take some time to open up the Serial Monitor
 
-    Serial.print("LM92: ");
-    Serial.println(lm92.readTemperature());
+    printSerial("LM92: ", false);
+    printSerial(lm92.readTemperature());
     OPT3001 result = opt3001.readResult();
     printResult("OPT3001", result);
 
     float tempC = ss.getTemp();
     uint16_t capread = ss.ss_touchRead(0);
-    Serial.print("Temperature: ");
-    Serial.print(tempC);
-    Serial.println("*C");
-    Serial.print("Capacitive: ");
-    Serial.println(capread);
-    Serial.println("----");
+    printSerial("Temperature: ", false);
+    printSerial(tempC, false);
+    printSerial("*C");
+    printSerial("Capacitive: ", false);
+    printSerial(capread);
+    printSerial("----");
 
-    byte error, address;
-    int nDevices;
-
-    Serial.println("Scanning...");
-
-    nDevices = 0;
-    for (address = 1; address < 127; address++) {
-        Wire.beginTransmission(address);
-        error = Wire.endTransmission();
-
-        if (error == 0) {
-            Serial.print("I2C device found at address 0x");
-            if (address < 16) {
-                Serial.print("0");
-            }
-            Serial.print(address, HEX);
-            Serial.println(" !");
-
-            nDevices++;
-        }
-    }
-    if (nDevices == 0) {
-        Serial.println("No I2C devices found\n");
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print("LM92: ");
+    display.println(lm92.readTemperature());
+    if (result.error == NO_ERROR) {
+        display.print("OPT3001: ");
+        display.print(result.lux);
+        display.println(" lux");
     } else {
-        Serial.println("done\n");
+        printError("OPT3001", result.error);
     }
+    display.print("Soil Temp: ");
+    display.println(tempC);
+    display.print("Soil Cap: ");
+    display.print(capread);
+
+    display.display();
 }
 
 /*
@@ -120,30 +94,30 @@ void print_wakeup_reason() {
 
     switch (wakeup_reason) {
     case ESP_SLEEP_WAKEUP_EXT0:
-        Serial.println("Wakeup caused by external signal using RTC_IO");
+        printSerial("Wakeup caused by external signal using RTC_IO");
         break;
     case ESP_SLEEP_WAKEUP_EXT1:
-        Serial.println("Wakeup caused by external signal using RTC_CNTL");
+        printSerial("Wakeup caused by external signal using RTC_CNTL");
         break;
     case ESP_SLEEP_WAKEUP_TIMER:
-        Serial.println("Wakeup caused by timer");
+        printSerial("Wakeup caused by timer");
         break;
     case ESP_SLEEP_WAKEUP_TOUCHPAD:
-        Serial.println("Wakeup caused by touchpad");
+        printSerial("Wakeup caused by touchpad");
         break;
     case ESP_SLEEP_WAKEUP_ULP:
-        Serial.println("Wakeup caused by ULP program");
+        printSerial("Wakeup caused by ULP program");
         break;
     default:
-        Serial.printf("Wakeup was not caused by deep sleep: %d\n",
-                      wakeup_reason);
+        printSerial("Wakeup was not caused by deep sleep: ", false);
+        printSerial(wakeup_reason);
     }
 }
 
 void goToSleep(void) {
     // Increment boot number and print it every reboot
     ++bootCount;
-    Serial.println("Boot number: " + String(bootCount));
+    printSerial("Boot number: " + String(bootCount));
 
     // Print the wakeup reason for ESP32
     print_wakeup_reason();
@@ -153,8 +127,8 @@ void goToSleep(void) {
     We set our ESP32 to wake up every 5 seconds
     */
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-    Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) +
-                   " Seconds");
+    printSerial("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) +
+                " Seconds");
 
     /*
     Next we decide what all peripherals to shut down/keep on
@@ -166,7 +140,7 @@ void goToSleep(void) {
     The line below turns off all RTC peripherals in deep sleep.
     */
     // esp_deep_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-    // Serial.println("Configured all RTC Peripherals to be powered down in
+    // printSerial("Configured all RTC Peripherals to be powered down in
     // sleep");
 
     /*
@@ -177,7 +151,7 @@ void goToSleep(void) {
     sleep was started, it will sleep forever unless hardware
     reset occurs.
     */
-    Serial.println("Going to sleep now");
+    printSerial("Going to sleep now");
     Serial.flush();
     esp_deep_sleep_start();
 }
@@ -195,59 +169,138 @@ void configureSensor() {
         printError("OPT3001 configuration", errorConfig);
     else {
         OPT3001_Config sensorConfig = opt3001.readConfig();
-        Serial.println("OPT3001 Current Config:");
-        Serial.println("------------------------------");
+        printSerial("OPT3001 Current Config:");
+        printSerial("------------------------------");
 
-        Serial.print("Conversion ready (R):");
-        Serial.println(sensorConfig.ConversionReady, HEX);
+        printSerial("Conversion ready (R):", false);
+        printSerial(sensorConfig.ConversionReady, HEX);
 
-        Serial.print("Conversion time (R/W):");
-        Serial.println(sensorConfig.ConvertionTime, HEX);
+        printSerial("Conversion time (R/W):", false);
+        printSerial(sensorConfig.ConvertionTime, HEX);
 
-        Serial.print("Fault count field (R/W):");
-        Serial.println(sensorConfig.FaultCount, HEX);
+        printSerial("Fault count field (R/W):", false);
+        printSerial(sensorConfig.FaultCount, HEX);
 
-        Serial.print("Flag high field (R-only):");
-        Serial.println(sensorConfig.FlagHigh, HEX);
+        printSerial("Flag high field (R-only):", false);
+        printSerial(sensorConfig.FlagHigh, HEX);
 
-        Serial.print("Flag low field (R-only):");
-        Serial.println(sensorConfig.FlagLow, HEX);
+        printSerial("Flag low field (R-only):", false);
+        printSerial(sensorConfig.FlagLow, HEX);
 
-        Serial.print("Latch field (R/W):");
-        Serial.println(sensorConfig.Latch, HEX);
+        printSerial("Latch field (R/W):", false);
+        printSerial(sensorConfig.Latch, HEX);
 
-        Serial.print("Mask exponent field (R/W):");
-        Serial.println(sensorConfig.MaskExponent, HEX);
+        printSerial("Mask exponent field (R/W):", false);
+        printSerial(sensorConfig.MaskExponent, HEX);
 
-        Serial.print("Mode of conversion operation (R/W):");
-        Serial.println(sensorConfig.ModeOfConversionOperation, HEX);
+        printSerial("Mode of conversion operation (R/W):", false);
+        printSerial(sensorConfig.ModeOfConversionOperation, HEX);
 
-        Serial.print("Polarity field (R/W):");
-        Serial.println(sensorConfig.Polarity, HEX);
+        printSerial("Polarity field (R/W):", false);
+        printSerial(sensorConfig.Polarity, HEX);
 
-        Serial.print("Overflow flag (R-only):");
-        Serial.println(sensorConfig.OverflowFlag, HEX);
+        printSerial("Overflow flag (R-only):", false);
+        printSerial(sensorConfig.OverflowFlag, HEX);
 
-        Serial.print("Range number (R/W):");
-        Serial.println(sensorConfig.RangeNumber, HEX);
+        printSerial("Range number (R/W):", false);
+        printSerial(sensorConfig.RangeNumber, HEX);
 
-        Serial.println("------------------------------");
+        printSerial("------------------------------");
     }
 }
 
 void printResult(String text, OPT3001 result) {
     if (result.error == NO_ERROR) {
-        Serial.print(text);
-        Serial.print(": ");
-        Serial.print(result.lux);
-        Serial.println(" lux");
+        printSerial(text, false);
+        printSerial(": ", false);
+        printSerial(result.lux, false);
+        printSerial(" lux");
     } else {
         printError(text, result.error);
     }
 }
 
 void printError(String text, OPT3001_ErrorCode error) {
-    Serial.print(text);
-    Serial.print(": [ERROR] Code #");
-    Serial.println(error);
+    printSerial(text, false);
+    printSerial(": [ERROR] Code #", false);
+    printSerial(F(error));
+}
+
+void scanI2CDevices(void) {
+    byte error, address;
+    int nDevices;
+
+    printSerial("Scanning...");
+
+    nDevices = 0;
+    for (address = 1; address < 127; address++) {
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
+
+        if (error == 0) {
+            printSerial("I2C device found at address 0x", false);
+            if (address < 16) {
+                printSerial("0", false);
+            }
+            printSerial(address, HEX);
+            printSerial(" !");
+
+            nDevices++;
+        }
+    }
+    if (nDevices == 0) {
+        printSerial("No I2C devices found");
+    } else {
+        printSerial("done");
+    }
+}
+
+void printSerial(const char *text, bool newLine) {
+#ifdef DEBUG_MODE
+    if (newLine) {
+        Serial.println(text);
+    } else {
+        Serial.print(text);
+    }
+#endif
+}
+
+void printSerial(const String &text, bool newLine) {
+#ifdef DEBUG_MODE
+    if (newLine) {
+        Serial.println(text);
+    } else {
+        Serial.print(text);
+    }
+#endif
+}
+
+void printSerial(double variable, bool newLine) {
+#ifdef DEBUG_MODE
+    if (newLine) {
+        Serial.println(variable);
+    } else {
+        Serial.print(variable);
+    }
+#endif
+}
+
+void printSerial(int variable, int format, bool newline) {
+#ifdef DEBUG_MODE
+    if (newline) {
+        Serial.println(variable, format);
+    } else {
+        Serial.print(variable, format);
+    }
+#endif
+}
+
+void printSerial(unsigned int variable, int format, bool newline) {
+#ifdef DEBUG_MODE
+    if (newline) {
+        Serial.println(variable, format);
+    } else {
+        Serial.print(variable, format);
+    }
+#endif
 }
