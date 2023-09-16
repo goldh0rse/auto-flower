@@ -24,8 +24,6 @@ void setup() {
     display.setTextColor(WHITE);
     display.setTextSize(1);
     display.setCursor(0, 0);
-    display.print("Hello!");
-    display.display();
 
     opt3001.begin(OPT3001_ADDRESS);
     printSerial("OPT3001 Manufacturer ID", false);
@@ -33,7 +31,7 @@ void setup() {
     printSerial("OPT3001 Device ID", false);
     printSerial(opt3001.readDeviceID());
 
-    configureSensor();
+    configureOPT3001();
     printResult("High-Limit", opt3001.readHighLimit());
     printResult("Low-Limit", opt3001.readLowLimit());
     printSerial("----");
@@ -50,19 +48,20 @@ void setup() {
 void loop() {
     delay(2000); // Take some time to open up the Serial Monitor
 
-    printSerial("LM92: ", false);
-    printSerial(lm92.readTemperature());
     OPT3001 result = opt3001.readResult();
-    printResult("OPT3001", result);
-
     float tempC = ss.getTemp();
     uint16_t capread = ss.ss_touchRead(0);
-    printSerial("Temperature: ", false);
-    printSerial(tempC, false);
-    printSerial("*C");
-    printSerial("Capacitive: ", false);
-    printSerial(capread);
-    printSerial("----");
+
+    scanI2CDevices();
+    // printSerial("LM92: ", false);
+    // printSerial(lm92.readTemperature());
+    // printResult("OPT3001", result);
+    // printSerial("Temperature: ", false);
+    // printSerial(tempC, false);
+    // printSerial("*C");
+    // printSerial("Capacitive: ", false);
+    // printSerial(capread);
+    // printSerial("----");
 
     display.clearDisplay();
     display.setCursor(0, 0);
@@ -156,7 +155,7 @@ void goToSleep(void) {
     esp_deep_sleep_start();
 }
 
-void configureSensor() {
+void configureOPT3001() {
     OPT3001_Config newConfig;
 
     newConfig.RangeNumber = B1100;
@@ -226,81 +225,3 @@ void printError(String text, OPT3001_ErrorCode error) {
     printSerial(F(error));
 }
 
-void scanI2CDevices(void) {
-    byte error, address;
-    int nDevices;
-
-    printSerial("Scanning...");
-
-    nDevices = 0;
-    for (address = 1; address < 127; address++) {
-        Wire.beginTransmission(address);
-        error = Wire.endTransmission();
-
-        if (error == 0) {
-            printSerial("I2C device found at address 0x", false);
-            if (address < 16) {
-                printSerial("0", false);
-            }
-            printSerial(address, HEX);
-            printSerial(" !");
-
-            nDevices++;
-        }
-    }
-    if (nDevices == 0) {
-        printSerial("No I2C devices found");
-    } else {
-        printSerial("done");
-    }
-}
-
-void printSerial(const char *text, bool newLine) {
-#ifdef DEBUG_MODE
-    if (newLine) {
-        Serial.println(text);
-    } else {
-        Serial.print(text);
-    }
-#endif
-}
-
-void printSerial(const String &text, bool newLine) {
-#ifdef DEBUG_MODE
-    if (newLine) {
-        Serial.println(text);
-    } else {
-        Serial.print(text);
-    }
-#endif
-}
-
-void printSerial(double variable, bool newLine) {
-#ifdef DEBUG_MODE
-    if (newLine) {
-        Serial.println(variable);
-    } else {
-        Serial.print(variable);
-    }
-#endif
-}
-
-void printSerial(int variable, int format, bool newline) {
-#ifdef DEBUG_MODE
-    if (newline) {
-        Serial.println(variable, format);
-    } else {
-        Serial.print(variable, format);
-    }
-#endif
-}
-
-void printSerial(unsigned int variable, int format, bool newline) {
-#ifdef DEBUG_MODE
-    if (newline) {
-        Serial.println(variable, format);
-    } else {
-        Serial.print(variable, format);
-    }
-#endif
-}

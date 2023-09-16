@@ -1,6 +1,4 @@
-
-
-#include "seesaw.h"
+#include "SoilSensor.h"
 
 Adafruit_seesaw::Adafruit_seesaw(TwoWire *i2c_bus) {
     if (i2c_bus == NULL) {
