@@ -1,6 +1,7 @@
-#ifndef SEESAAW_H
-#define SEESAH_H
-#include "Adafruit_I2CDevice.h"
+#ifndef SEESAW_H
+#define SEESAW_H
+
+#include <Adafruit_I2CDevice.h>
 #include <Arduino.h>
 #include <Wire.h>
 
@@ -181,23 +182,23 @@ class Adafruit_seesaw : public Print {
     begin(uint8_t addr = SEESAW_ADDRESS, int8_t flow = -1, bool reset = true);
     bool SWReset();
 
-    void pinMode(uint8_t pin, uint8_t mode);
-    void pinModeBulk(uint32_t pins, uint8_t mode);
-    void pinModeBulk(uint32_t pinsa, uint32_t pinsb, uint8_t mode);
+    void ss_pinMode(uint8_t pin, uint8_t mode);
+    void ss_pinModeBulk(uint32_t pins, uint8_t mode);
+    void ss_pinModeBulk(uint32_t pinsa, uint32_t pinsb, uint8_t mode);
     // void digitalWrite(uint8_t pin, uint8_t value);
     // void digitalWriteBulk(uint32_t port_values);
     // void digitalWriteBulk(uint32_t pins, uint8_t value);
     // void digitalWriteBulk(uint32_t pinsa, uint32_t pinsb, uint8_t value);
 
-    bool digitalRead(uint8_t pin);
-    uint32_t digitalReadBulk(uint32_t pins);
-    uint32_t digitalReadBulkB(uint32_t pins);
+    bool ss_digitalRead(uint8_t pin);
+    uint32_t ss_digitalReadBulk(uint32_t pins);
+    uint32_t ss_digitalReadBulkB(uint32_t pins);
 
     // void setGPIOInterrupts(uint32_t pins, bool enabled);
 
     // virtual uint16_t analogRead(uint8_t pin);
 
-    uint16_t touchRead(uint8_t pin);
+    uint16_t ss_touchRead(uint8_t pin);
 
     // void enableSercomDataRdyInterrupt(uint8_t sercom = 0);
     // void disableSercomDataRdyInterrupt(uint8_t sercom = 0);
@@ -219,6 +220,7 @@ class Adafruit_seesaw : public Print {
 
     virtual size_t write(uint8_t);
     virtual size_t write(const char *str);
+    virtual bool write8(byte regHigh, byte regLow, byte value);
 
   protected:
     TwoWire *_i2cbus; /*!< The I2C Bus used to communicate with the seesaw */
@@ -228,13 +230,11 @@ class Adafruit_seesaw : public Print {
 
     uint8_t _hardwaretype = 0; /*!< what hardware type is attached! */
 
-    bool write8(byte regHigh, byte regLow, byte value);
-
-    bool read(uint8_t regHigh,
-              uint8_t regLow,
-              uint8_t *buf,
-              uint8_t num,
-              uint16_t delay = 250);
+    bool ss_read(uint8_t regHigh,
+                 uint8_t regLow,
+                 uint8_t *buf,
+                 uint8_t num,
+                 uint16_t delay = 250);
     bool write(uint8_t regHigh, uint8_t regLow, uint8_t *buf, uint8_t num);
 
     /*=========================================================================

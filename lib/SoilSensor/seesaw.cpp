@@ -1,3 +1,5 @@
+
+
 #include "seesaw.h"
 
 Adafruit_seesaw::Adafruit_seesaw(TwoWire *i2c_bus) {
@@ -53,7 +55,7 @@ bool Adafruit_seesaw::begin(uint8_t addr, int8_t flow, bool reset) {
     for (int retries = 0; !found && retries < 10; retries++) {
         uint8_t c = 0;
 
-        this->read(SEESAW_STATUS_BASE, SEESAW_STATUS_HW_ID, &c, 1);
+        this->ss_read(SEESAW_STATUS_BASE, SEESAW_STATUS_HW_ID, &c, 1);
         if ((c == SEESAW_HW_ID_CODE_SAMD09) ||
             (c == SEESAW_HW_ID_CODE_TINY817) ||
             (c == SEESAW_HW_ID_CODE_TINY807) ||
@@ -69,21 +71,20 @@ bool Adafruit_seesaw::begin(uint8_t addr, int8_t flow, bool reset) {
     }
 
     return found;
-    s
 }
 
 bool Adafruit_seesaw::SWReset() {
     return this->write8(SEESAW_STATUS_BASE, SEESAW_STATUS_SWRST, 0xFF);
 }
 
-void Adafruit_seesaw::pinMode(uint8_t pin, uint8_t mode) {
+void Adafruit_seesaw::ss_pinMode(uint8_t pin, uint8_t mode) {
     if (pin >= 32)
-        pinModeBulk(0, 1ul << (pin - 32), mode);
+        ss_pinModeBulk(0, 1ul << (pin - 32), mode);
     else
-        pinModeBulk(1ul << pin, mode);
+        ss_pinModeBulk(1ul << pin, mode);
 }
 
-void Adafruit_seesaw::pinModeBulk(uint32_t pins, uint8_t mode) {
+void Adafruit_seesaw::ss_pinModeBulk(uint32_t pins, uint8_t mode) {
     uint8_t cmd[] = {(uint8_t)(pins >> 24),
                      (uint8_t)(pins >> 16),
                      (uint8_t)(pins >> 8),
@@ -108,9 +109,9 @@ void Adafruit_seesaw::pinModeBulk(uint32_t pins, uint8_t mode) {
     }
 }
 
-void Adafruit_seesaw::pinModeBulk(uint32_t pinsa,
-                                  uint32_t pinsb,
-                                  uint8_t mode) {
+void Adafruit_seesaw::ss_pinModeBulk(uint32_t pinsa,
+                                     uint32_t pinsb,
+                                     uint8_t mode) {
     uint8_t cmd[] = {(uint8_t)(pinsa >> 24),
                      (uint8_t)(pinsa >> 16),
                      (uint8_t)(pinsa >> 8),
@@ -139,11 +140,11 @@ void Adafruit_seesaw::pinModeBulk(uint32_t pinsa,
     }
 }
 
-bool Adafruit_seesaw::read(uint8_t regHigh,
-                           uint8_t regLow,
-                           uint8_t *buf,
-                           uint8_t num,
-                           uint16_t delay) {
+bool Adafruit_seesaw::ss_read(uint8_t regHigh,
+                              uint8_t regLow,
+                              uint8_t *buf,
+                              uint8_t num,
+                              uint16_t delay) {
     uint8_t pos = 0;
     uint8_t prefix[2];
     prefix[0] = (uint8_t)regHigh;
@@ -178,24 +179,24 @@ bool Adafruit_seesaw::read(uint8_t regHigh,
     return true;
 }
 
-bool Adafruit_seesaw::digitalRead(uint8_t pin) {
+bool Adafruit_seesaw::ss_digitalRead(uint8_t pin) {
     if (pin >= 32)
-        return digitalReadBulkB((1ul << (pin - 32))) != 0;
+        return ss_digitalReadBulkB((1ul << (pin - 32))) != 0;
     else
-        return digitalReadBulk((1ul << pin)) != 0;
+        return ss_digitalReadBulk((1ul << pin)) != 0;
 }
 
-uint32_t Adafruit_seesaw::digitalReadBulkB(uint32_t pins) {
+uint32_t Adafruit_seesaw::ss_digitalReadBulkB(uint32_t pins) {
     uint8_t buf[8];
-    this->read(SEESAW_GPIO_BASE, SEESAW_GPIO_BULK, buf, 8);
+    this->ss_read(SEESAW_GPIO_BASE, SEESAW_GPIO_BULK, buf, 8);
     uint32_t ret = ((uint32_t)buf[4] << 24) | ((uint32_t)buf[5] << 16) |
         ((uint32_t)buf[6] << 8) | (uint32_t)buf[7];
     return ret & pins;
 }
 
-uint32_t Adafruit_seesaw::digitalReadBulk(uint32_t pins) {
+uint32_t Adafruit_seesaw::ss_digitalReadBulk(uint32_t pins) {
     uint8_t buf[4];
-    this->read(SEESAW_GPIO_BASE, SEESAW_GPIO_BULK, buf, 4);
+    this->ss_read(SEESAW_GPIO_BASE, SEESAW_GPIO_BULK, buf, 4);
     uint32_t ret = ((uint32_t)buf[0] << 24) | ((uint32_t)buf[1] << 16) |
         ((uint32_t)buf[2] << 8) | (uint32_t)buf[3];
     return ret & pins;
@@ -244,17 +245,17 @@ bool Adafruit_seesaw::write8(byte regHigh, byte regLow, byte value) {
     return this->write(regHigh, regLow, &value, 1);
 }
 
-uint16_t Adafruit_seesaw::touchRead(uint8_t pin) {
+uint16_t Adafruit_seesaw::ss_touchRead(uint8_t pin) {
     uint8_t buf[2];
     uint8_t p = pin;
     uint16_t ret = 65535;
 
     for (uint8_t retry = 0; retry < 5; retry++) {
-        if (this->read(SEESAW_TOUCH_BASE,
-                       SEESAW_TOUCH_CHANNEL_OFFSET + p,
-                       buf,
-                       2,
-                       3000 + retry * 1000)) {
+        if (this->ss_read(SEESAW_TOUCH_BASE,
+                          SEESAW_TOUCH_CHANNEL_OFFSET + p,
+                          buf,
+                          2,
+                          3000 + retry * 1000)) {
             ret = ((uint16_t)buf[0] << 8) | buf[1];
             break;
         }
@@ -264,7 +265,7 @@ uint16_t Adafruit_seesaw::touchRead(uint8_t pin) {
 
 float Adafruit_seesaw::getTemp() {
     uint8_t buf[4];
-    this->read(SEESAW_STATUS_BASE, SEESAW_STATUS_TEMP, buf, 4, 1000);
+    this->ss_read(SEESAW_STATUS_BASE, SEESAW_STATUS_TEMP, buf, 4, 1000);
     int32_t ret = ((uint32_t)buf[0] << 24) | ((uint32_t)buf[1] << 16) |
         ((uint32_t)buf[2] << 8) | (uint32_t)buf[3];
     return (1.0 / (1UL << 16)) * ret;
