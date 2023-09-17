@@ -1,40 +1,70 @@
 #include "main.h"
 
-RTC_DATA_ATTR int bootCount = 0;
-
 Adafruit_seesaw ss;
 LM92 lm92(1, 0);
 ClosedCube_OPT3001 opt3001;
 
-void setup() {
-    pinMode(SDA, PULLUP);
-    pinMode(SCL, PULLUP);
+hw_timer_t *timer = NULL;
+volatile SemaphoreHandle_t timerSemaphore;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
+volatile uint32_t isrCounter = 0;
+volatile uint32_t lastIsrAt = 0;
+
+void ARDUINO_ISR_ATTR onTimer() {
+    // Increment the counter and set the time of ISR
+    portENTER_CRITICAL_ISR(&timerMux);
+    isrCounter++;
+    lastIsrAt = millis();
+    portEXIT_CRITICAL_ISR(&timerMux);
+    // Give a semaphore that we can check in the loop
+    xSemaphoreGiveFromISR(timerSemaphore, NULL);
+    // It is safe to use digitalRead/Write here if you want to toggle an
+    // output
+}
+
+void setup() {
 #ifdef DEBUG_MODE
     Serial.begin(9600);
     while (!Serial)
         delay(10); // wait until serial port is opened
-    initDisplay();
 #endif
+    // Initialize i2c
+    Wire.begin();
+    delay(1000);
+    scanI2CDevices();
+    // Initialize OLED
+    initDisplay();
+
+#ifdef WIFI_SSID
+    printSerial("SSID: ", false);
+    printSerial(WIFI_SSID);
+#else
+    // Log error
+    printSerial("SSID not set, exiting program.");
+    exit(-1);
+#endif
+
+#ifdef WIFI_PASSWORD
+    printSerial("Password: ", false);
+    printSerial(WIFI_PASSWORD);
+#else
+    printSerial("Password is not set, exiting prgram.");
+    exit(-1);
+#endif
+
+    // pinMode(SDA, PULLUP);
+    // pinMode(SCL, PULLUP);
 
     lm92.ResultInCelsius = true;
     lm92.enableFaultQueue(true);
 
-    display.clearDisplay();
-    display.setTextColor(WHITE);
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-
     opt3001.begin(OPT3001_ADDRESS);
-    printSerial("OPT3001 Manufacturer ID", false);
-    printSerial(opt3001.readManufacturerID());
-    printSerial("OPT3001 Device ID", false);
-    printSerial(opt3001.readDeviceID());
-
+    Serial.print("OPT3001 Manufacturer ID");
+    Serial.println(opt3001.readManufacturerID());
+    Serial.print("OPT3001 Device ID");
+    Serial.println(opt3001.readDeviceID());
     configureOPT3001();
-    printResult("High-Limit", opt3001.readHighLimit());
-    printResult("Low-Limit", opt3001.readLowLimit());
-    printSerial("----");
 
     if (!ss.begin(SS_ADDRESS)) {
         printSerial("ERROR! seesaw not found");
@@ -43,27 +73,33 @@ void setup() {
     } else {
         printSerial("seesaw started!");
     }
+
+    // Create semaphore to inform us when the timer has fired
+    timerSemaphore = xSemaphoreCreateBinary();
+
+    // Use 1st timer of 4 (counted from zero).
+    // Set 80 divider for prescaler (see ESP32 Technical Reference Manual for
+    // more info).
+    timer = timerBegin(0, 80, true);
+
+    // Attach onTimer function to our timer.
+    timerAttachInterrupt(timer, &onTimer, true);
+
+    // Set alarm to call onTimer function every second (value in microseconds).
+    // Repeat the alarm (third parameter)
+    timerAlarmWrite(timer, 1000000, true);
+
+    // Start an alarm
+    timerAlarmEnable(timer);
 }
 
 void loop() {
-    delay(2000); // Take some time to open up the Serial Monitor
-
     OPT3001 result = opt3001.readResult();
     float tempC = ss.getTemp();
     uint16_t capread = ss.ss_touchRead(0);
 
-    scanI2CDevices();
-    // printSerial("LM92: ", false);
-    // printSerial(lm92.readTemperature());
-    // printResult("OPT3001", result);
-    // printSerial("Temperature: ", false);
-    // printSerial(tempC, false);
-    // printSerial("*C");
-    // printSerial("Capacitive: ", false);
-    // printSerial(capread);
-    // printSerial("----");
-
     display.clearDisplay();
+    display.setTextColor(WHITE);
     display.setCursor(0, 0);
     display.print("LM92: ");
     display.println(lm92.readTemperature());
@@ -77,82 +113,23 @@ void loop() {
     display.print("Soil Temp: ");
     display.println(tempC);
     display.print("Soil Cap: ");
-    display.print(capread);
-
+    display.println(capread);
     display.display();
-}
 
-/*
-Method to print the reason by which ESP32
-has been awaken from sleep
-*/
-void print_wakeup_reason() {
-    esp_sleep_wakeup_cause_t wakeup_reason;
-
-    wakeup_reason = esp_sleep_get_wakeup_cause();
-
-    switch (wakeup_reason) {
-    case ESP_SLEEP_WAKEUP_EXT0:
-        printSerial("Wakeup caused by external signal using RTC_IO");
-        break;
-    case ESP_SLEEP_WAKEUP_EXT1:
-        printSerial("Wakeup caused by external signal using RTC_CNTL");
-        break;
-    case ESP_SLEEP_WAKEUP_TIMER:
-        printSerial("Wakeup caused by timer");
-        break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD:
-        printSerial("Wakeup caused by touchpad");
-        break;
-    case ESP_SLEEP_WAKEUP_ULP:
-        printSerial("Wakeup caused by ULP program");
-        break;
-    default:
-        printSerial("Wakeup was not caused by deep sleep: ", false);
-        printSerial(wakeup_reason);
+    if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
+        uint32_t isrCount = 0, isrTime = 0;
+        // Read the interrupt count and time
+        portENTER_CRITICAL(&timerMux);
+        isrCount = isrCounter;
+        isrTime = lastIsrAt;
+        portEXIT_CRITICAL(&timerMux);
+        // Print it
+        Serial.print("onTimer no. ");
+        Serial.print(isrCount);
+        Serial.print(" at ");
+        Serial.print(isrTime);
+        Serial.println(" ms");
     }
-}
-
-void goToSleep(void) {
-    // Increment boot number and print it every reboot
-    ++bootCount;
-    printSerial("Boot number: " + String(bootCount));
-
-    // Print the wakeup reason for ESP32
-    print_wakeup_reason();
-
-    /*
-    First we configure the wake up source
-    We set our ESP32 to wake up every 5 seconds
-    */
-    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-    printSerial("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) +
-                " Seconds");
-
-    /*
-    Next we decide what all peripherals to shut down/keep on
-    By default, ESP32 will automatically power down the peripherals
-    not needed by the wakeup source, but if you want to be a poweruser
-    this is for you. Read in detail at the API docs
-    http://esp-idf.readthedocs.io/en/latest/api-reference/system/deep_sleep.html
-    Left the line commented as an example of how to configure peripherals.
-    The line below turns off all RTC peripherals in deep sleep.
-    */
-    // esp_deep_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-    // printSerial("Configured all RTC Peripherals to be powered down in
-    // sleep");
-
-    /*
-    Now that we have setup a wake cause and if needed setup the
-    peripherals state in deep sleep, we can now start going to
-    deep sleep.
-    In the case that no wake up sources were provided but deep
-    sleep was started, it will sleep forever unless hardware
-    reset occurs.
-    */
-    printSerial("Going to sleep now");
-    Serial.flush();
-    esp_deep_sleep_start();
 }
 
 void configureOPT3001() {
@@ -224,4 +201,3 @@ void printError(String text, OPT3001_ErrorCode error) {
     printSerial(": [ERROR] Code #", false);
     printSerial(F(error));
 }
-

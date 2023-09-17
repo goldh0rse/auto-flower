@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include <Arduino.h>
+#include <Wire.h>
 
 #define EEPROM_I2C_ADDRESS 0x50 // Replace with your EEPROM's I2C address
 #define PAGE_SIZE 128           // The page size for 24AA1026 is 128 bytes
