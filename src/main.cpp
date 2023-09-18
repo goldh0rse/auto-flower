@@ -95,21 +95,32 @@ void setup() {
 
 void loop() {
     OPT3001 result = opt3001.readResult();
-    float tempC = ss.getTemp();
+    float soil_temp = ss.getTemp();
     uint16_t capread = ss.ss_touchRead(0);
+    double room_temp = lm92.readTemperature();
 
     if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
         // Create JSON document
-        DynamicJsonDocument doc(1024);
-        doc["temperature"] = tempC;
-        doc["humidity"] = capread;
-        doc["lux"] = result.lux;
-
+        DynamicJsonDocument doc(256);
         String payload;
-        serializeJson(doc, payload); // Serialize JSON document to String
+        doc["room_temperature"] = room_temp;
 
+        serializeJson(doc, payload); // Serialize JSON document to String
+        doc.clear();                 // Clear
         // Send HTTP POST request
-        sendHttpPost(REST_API, payload);
+        sendHttpPost(REST_API + "/api/v1/temperature", payload);
+
+        doc["soil_temperature"] = soil_temp;
+        doc["moisture"] = capread;
+        serializeJson(doc, payload); // Serialize JSON document to String
+        doc.clear();                 // Clear
+        // Send HTTP POST request
+        sendHttpPost(REST_API + "/api/v1/soil", payload);
+
+        doc["lux"] = result.lux;
+        serializeJson(doc, payload); // Serialize JSON document to String
+        // Send HTTP POST request
+        sendHttpPost(REST_API + "/api/v1/light", payload);
 
         display.clearDisplay();
         display.setTextColor(WHITE);

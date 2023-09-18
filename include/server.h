@@ -9,6 +9,6 @@
 
 // Functions
 bool connectWiFi(String ssid, String passwd);
-void sendHttpPost(String apiHost, String payload);
+void sendHttpPost(String apiUrl, String payload);
 
 #endif

@@ -12,24 +12,24 @@ bool connectWiFi(String ssid, String passwd) {
     return true;
 }
 
-void sendHttpPost(String apiHost, String payload) {
-    HTTPClient http; // Create an HTTPClient object
+void sendHttpPost(String apiUrl, String payload) {
+    HTTPClient http;
 
-    http.begin(apiHost + "/api/data"); // Specify the URL for the request
-    http.addHeader("Content-Type",
-                   "application/json"); // Specify content-type header
+    http.begin(apiUrl);
+    http.addHeader("Content-Type", "application/json");
 
-    int httpResponseCode = http.POST(payload); // Send the actual POST request
+    int httpResponseCode = http.POST(payload);
 
     if (httpResponseCode > 0) {
-        String response = http.getString(); // Get the response to the request
+        String response = http.getString();
 
-        Serial.println(httpResponseCode); // Print HTTP return code
-        Serial.println(response);         // Print request response payload
+        Serial.println(httpResponseCode);
+        Serial.println(response);
     } else {
+        // TODO: Error logging
         Serial.print("Error on sending POST: ");
         Serial.println(httpResponseCode);
     }
 
-    http.end(); // Close connection
+    http.end();
 }
