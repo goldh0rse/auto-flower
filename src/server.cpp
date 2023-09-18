@@ -12,10 +12,10 @@ bool connectWiFi(String ssid, String passwd) {
     return true;
 }
 
-void sendHttpPost(String apiUrl, String payload) {
+void sendHttpPost(String apiHost, String payload) {
     HTTPClient http; // Create an HTTPClient object
 
-    http.begin(apiUrl); // Specify the URL for the request
+    http.begin(apiHost + "/api/data"); // Specify the URL for the request
     http.addHeader("Content-Type",
                    "application/json"); // Specify content-type header
 

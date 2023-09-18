@@ -6,12 +6,8 @@ ClosedCube_OPT3001 opt3001;
 
 hw_timer_t *timer = NULL;
 volatile SemaphoreHandle_t timerSemaphore;
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 void ARDUINO_ISR_ATTR onTimer() {
-    // Increment the counter and set the time of ISR
-    portENTER_CRITICAL_ISR(&timerMux);
-    portEXIT_CRITICAL_ISR(&timerMux);
     // Give a semaphore that we can check in the loop
     xSemaphoreGiveFromISR(timerSemaphore, NULL);
 }
@@ -31,11 +27,19 @@ void setup() {
 
 #ifdef WIFI_SSID
     printSerial("SSID: ", false);
-    // printSerial(WIFI_SSID);
-    Serial.println(WIFI_SSID);
+    printSerial(WIFI_SSID);
 #else
     // Log error
     printSerial("SSID not set, exiting program.");
+    exit(-1);
+#endif
+
+#ifdef REST_API
+    printSerial("Rest API: ", false);
+    printSerial(REST_API);
+#else
+    // Log error
+    printSerial("No API host provided");
     exit(-1);
 #endif
 
@@ -48,7 +52,7 @@ void setup() {
     exit(-1);
 #endif
 
-    // connectWiFi(WIFI_SSID, WIFI_PASSWD);
+    connectWiFi(WIFI_SSID, WIFI_PASSWD);
     // pinMode(SDA, PULLUP);
     // pinMode(SCL, PULLUP);
 
@@ -95,6 +99,18 @@ void loop() {
     uint16_t capread = ss.ss_touchRead(0);
 
     if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
+        // Create JSON document
+        DynamicJsonDocument doc(1024);
+        doc["temperature"] = tempC;
+        doc["humidity"] = capread;
+        doc["lux"] = result.lux;
+
+        String payload;
+        serializeJson(doc, payload); // Serialize JSON document to String
+
+        // Send HTTP POST request
+        sendHttpPost(REST_API, payload);
+
         display.clearDisplay();
         display.setTextColor(WHITE);
         display.setCursor(0, 0);
@@ -112,10 +128,6 @@ void loop() {
         display.print("Soil Cap: ");
         display.println(capread);
         display.display();
-
-        // Read the interrupt count and time
-        portENTER_CRITICAL(&timerMux);
-        portEXIT_CRITICAL(&timerMux);
     }
 }
 
