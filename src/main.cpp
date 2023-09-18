@@ -114,12 +114,6 @@ void loop() {
         // Read the interrupt count and time
         portENTER_CRITICAL(&timerMux);
         portEXIT_CRITICAL(&timerMux);
-        // Print it
-        Serial.print("onTimer no. ");
-        Serial.print(isrCount);
-        Serial.print(" at ");
-        Serial.print(isrTime);
-        Serial.println(" ms");
     }
 }
 
