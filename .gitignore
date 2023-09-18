@@ -37,4 +37,4 @@
 .vscode/launch.json
 .vscode/settings.json
 build
-platformio.ini
+.env

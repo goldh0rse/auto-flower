@@ -31,22 +31,24 @@ void setup() {
 
 #ifdef WIFI_SSID
     printSerial("SSID: ", false);
-    printSerial(WIFI_SSID);
+    // printSerial(WIFI_SSID);
+    Serial.println(WIFI_SSID);
 #else
     // Log error
     printSerial("SSID not set, exiting program.");
     exit(-1);
 #endif
 
-#ifdef WIFI_PASSWORD
+#ifdef WIFI_PASSWD
     printSerial("Password: ", false);
-    printSerial(WIFI_PASSWORD);
+    // printSerial(WIFI_PASSWD);
+    Serial.println(WIFI_PASSWD);
 #else
     printSerial("Password is not set, exiting prgram.");
     exit(-1);
 #endif
 
-    connectWiFi(WIFI_SSID, WIFI_PASSWORD);
+    // connectWiFi(WIFI_SSID, WIFI_PASSWD);
     // pinMode(SDA, PULLUP);
     // pinMode(SCL, PULLUP);
 
