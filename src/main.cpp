@@ -1,25 +1,40 @@
 #include "main.h"
+#define CLOCK_SPEED_100KHZ 100000
 
 Adafruit_seesaw ss;
-LM92 lm92(1, 0);
+LM92 lm92;
 ClosedCube_OPT3001 opt3001;
 
 hw_timer_t *timer = NULL;
 volatile SemaphoreHandle_t timerSemaphore;
+volatile double room_temp;
+volatile uint16_t capread;
+volatile float soil_temp;
+volatile bool showScreen;
+byte interruptPin = 2;
 
 void ARDUINO_ISR_ATTR onTimer() {
     // Give a semaphore that we can check in the loop
-    xSemaphoreGiveFromISR(timerSemaphore, NULL);
+    // xSemaphoreGiveFromISR(timerSemaphore, NULL);
+
+    // External
+    showScreen = false;
+    timerAlarmDisable(timer);
+}
+
+void ext_interrupt() {
+    //   Start an alarm
+    timerAlarmEnable(timer);
+    showScreen = true;
 }
 
 void setup() {
+    Wire.begin();
+    pinMode(interruptPin, INPUT_PULLUP);
 #ifdef DEBUG_MODE
     Serial.begin(9600);
-    while (!Serial)
-        delay(10); // wait until serial port is opened
+    while (!Serial) delay(10);  // wait until serial port is opened
 #endif
-    // Initialize i2c
-    Wire.begin();
     delay(1000);
     scanI2CDevices();
     // Initialize OLED
@@ -53,8 +68,6 @@ void setup() {
 #endif
 
     connectWiFi(WIFI_SSID, WIFI_PASSWD);
-    // pinMode(SDA, PULLUP);
-    // pinMode(SCL, PULLUP);
 
     lm92.ResultInCelsius = true;
     lm92.enableFaultQueue(true);
@@ -68,14 +81,16 @@ void setup() {
 
     if (!ss.begin(SS_ADDRESS)) {
         printSerial("ERROR! seesaw not found");
-        while (1)
-            delay(1);
+        while (1) delay(1);
     } else {
         printSerial("seesaw started!");
     }
 
+    attachInterrupt(digitalPinToInterrupt(interruptPin),
+                    ext_interrupt,
+                    FALLING);
     // Create semaphore to inform us when the timer has fired
-    timerSemaphore = xSemaphoreCreateBinary();
+    // timerSemaphore = xSemaphoreCreateBinary();
 
     // Use 1st timer of 4 (counted from zero).
     // Set 80 divider for prescaler (see ESP32 Technical Reference Manual for
@@ -90,38 +105,17 @@ void setup() {
     timerAlarmWrite(timer, 1000000, true);
 
     // Start an alarm
-    timerAlarmEnable(timer);
+    // timerAlarmEnable(timer);
+    showScreen = false;
 }
 
 void loop() {
     OPT3001 result = opt3001.readResult();
-    float soil_temp = ss.getTemp();
-    uint16_t capread = ss.ss_touchRead(0);
-    double room_temp = lm92.readTemperature();
+    soil_temp = ss.getTemp();
+    capread = ss.ss_touchRead(0);
+    room_temp = lm92.readTemperature();
 
-    if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
-        // Create JSON document
-        DynamicJsonDocument doc(256);
-        String payload;
-        doc["room_temperature"] = room_temp;
-
-        serializeJson(doc, payload); // Serialize JSON document to String
-        doc.clear();                 // Clear
-        // Send HTTP POST request
-        sendHttpPost(REST_API + "/api/v1/temperature", payload);
-
-        doc["soil_temperature"] = soil_temp;
-        doc["moisture"] = capread;
-        serializeJson(doc, payload); // Serialize JSON document to String
-        doc.clear();                 // Clear
-        // Send HTTP POST request
-        sendHttpPost(REST_API + "/api/v1/soil", payload);
-
-        doc["lux"] = result.lux;
-        serializeJson(doc, payload); // Serialize JSON document to String
-        // Send HTTP POST request
-        sendHttpPost(REST_API + "/api/v1/light", payload);
-
+    if (showScreen) {
         display.clearDisplay();
         display.setTextColor(WHITE);
         display.setCursor(0, 0);
@@ -135,11 +129,61 @@ void loop() {
             printError("OPT3001", result.error);
         }
         display.print("Soil Temp: ");
-        display.println(tempC);
+        display.println(soil_temp);
         display.print("Soil Cap: ");
         display.println(capread);
         display.display();
+    } else {
+        display.clearDisplay();
     }
+
+    // if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
+    //     // scanI2CDevices();
+    //     // // Create JSON document
+    //     // DynamicJsonDocument doc(256);
+    //     // String payload;
+    //     // doc["room_temperature"] = room_temp;
+
+    //     // serializeJson(doc, payload);  // Serialize JSON document to
+    //     // String doc.clear();                  // Clear
+    //     // // Send HTTP POST request
+    //     // sendHttpPost(REST_API + "/api/v1/temperature", payload);
+
+    //     // doc["soil_temperature"] = soil_temp;
+    //     // doc["moisture"] = capread;
+    //     // serializeJson(doc, payload);  // Serialize JSON document to
+    //     // String doc.clear();                  // Clear
+    //     // // Send HTTP POST request
+    //     // sendHttpPost(REST_API + "/api/v1/soil", payload);
+
+    //     // doc["lux"] = result.lux;
+    //     // serializeJson(doc, payload);  // Serialize JSON document to
+    //     // String
+    //     // // Send HTTP POST request
+    //     // sendHttpPost(REST_API + "/api/v1/light", payload);
+
+    //     Serial.print("Temp: ");
+    //     Serial.println(room_temp);
+    //     Serial.print("Lux: ");
+    //     Serial.println(result.lux);
+    //     display.clearDisplay();
+    //     display.setTextColor(WHITE);
+    //     display.setCursor(0, 0);
+    //     display.print("LM92: ");
+    //     display.println(lm92.readTemperature());
+    //     if (result.error == NO_ERROR) {
+    //         display.print("OPT3001: ");
+    //         display.print(result.lux);
+    //         display.println(" lux");
+    //     } else {
+    //         printError("OPT3001", result.error);
+    //     }
+    //     display.print("Soil Temp: ");
+    //     display.println(soil_temp);
+    //     display.print("Soil Cap: ");
+    //     display.println(capread);
+    //     display.display();
+    // }
 }
 
 void configureOPT3001() {
