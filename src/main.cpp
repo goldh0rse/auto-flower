@@ -1,5 +1,4 @@
 #include "main.h"
-#define CLOCK_SPEED_100KHZ 100000
 
 Adafruit_seesaw ss;
 LM92 lm92;
@@ -14,23 +13,25 @@ volatile bool showScreen;
 byte interruptPin = 2;
 
 void ARDUINO_ISR_ATTR onTimer() {
-    // Give a semaphore that we can check in the loop
     // xSemaphoreGiveFromISR(timerSemaphore, NULL);
 
-    // External
     showScreen = false;
     timerAlarmDisable(timer);
 }
 
+// External interrupt functin for starting up OLED display
 void ext_interrupt() {
-    //   Start an alarm
     timerAlarmEnable(timer);
     showScreen = true;
 }
 
 void setup() {
+    // Activate i2c coupling
     Wire.begin();
+
+    // Activate Oled
     pinMode(interruptPin, INPUT_PULLUP);
+
 #ifdef DEBUG_MODE
     Serial.begin(9600);
     while (!Serial) delay(10);  // wait until serial port is opened
@@ -50,7 +51,7 @@ void setup() {
 #endif
 
 #ifdef REST_API
-    printSerial("Rest API: ", false);
+    printSerial("Rest API Host: ", false);
     printSerial(REST_API);
 #else
     // Log error
@@ -73,10 +74,10 @@ void setup() {
     lm92.enableFaultQueue(true);
 
     opt3001.begin(OPT3001_ADDRESS);
-    Serial.print("OPT3001 Manufacturer ID");
-    Serial.println(opt3001.readManufacturerID());
-    Serial.print("OPT3001 Device ID");
-    Serial.println(opt3001.readDeviceID());
+    // Serial.print("OPT3001 Manufacturer ID");
+    // Serial.println(opt3001.readManufacturerID());
+    // Serial.print("OPT3001 Device ID");
+    // Serial.println(opt3001.readDeviceID());
     configureOPT3001();
 
     if (!ss.begin(SS_ADDRESS)) {
@@ -134,6 +135,7 @@ void loop() {
         display.println(capread);
         display.display();
     } else {
+        display.flush();
         display.clearDisplay();
     }
 
