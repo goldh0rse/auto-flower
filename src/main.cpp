@@ -1,5 +1,7 @@
 #include "main.h"
 
+WiFiClient wifiClient;
+MqttClient mqttClient(wifiClient);
 Adafruit_seesaw ss;
 LM92 lm92;
 ClosedCube_OPT3001 opt3001;
@@ -12,11 +14,21 @@ volatile float soil_temp;
 volatile bool showScreen;
 byte interruptPin = 2;
 
-void ARDUINO_ISR_ATTR onTimer() {
-    // xSemaphoreGiveFromISR(timerSemaphore, NULL);
+WiFiClient wifiClient;
+MqttClient mqttClient(wifiClient);
 
-    showScreen = false;
-    timerAlarmDisable(timer);
+const char broker[] = "test.mosquitto.org";
+int port = 1883;
+const char topic[] = "arduino/simple";
+
+const long interval = 1000;
+unsigned long previousMillis = 0;
+
+void ARDUINO_ISR_ATTR onTimer() {
+    xSemaphoreGiveFromISR(timerSemaphore, NULL);
+
+    // showScreen = false;
+    // timerAlarmDisable(timer);
 }
 
 // External interrupt functin for starting up OLED display
@@ -61,23 +73,39 @@ void setup() {
 
 #ifdef WIFI_PASSWD
     printSerial("Password: ", false);
-    // printSerial(WIFI_PASSWD);
-    Serial.println(WIFI_PASSWD);
+    printSerial(WIFI_PASSWD);
 #else
+    // Log error
     printSerial("Password is not set, exiting prgram.");
     exit(-1);
 #endif
 
+#ifdef MQTT_BROKER
+    printSerial("MQTT broker host", false);
+    printSerial(MQTT_BROKER);
+#else
+    // Log error
+    printSerial("MQTT Host is not set, exiting program.");
+    exit(-1);
+#endif
+
+#ifdef MQTT_PORT
+    printSerial("MQTT broker post", false);
+    printSerial(MQTT_PORT);
+#else
+    // Log error
+    printSerial("MQTT Port is not set, exiting porgram");
+    exit(-1);
+#endif
+
+    // Connect to peripherals
     connectWiFi(WIFI_SSID, WIFI_PASSWD);
+    connectMQTTClient(mqttClient, MQTT_BROKER, MQTT_PORT.toInt());
 
     lm92.ResultInCelsius = true;
     lm92.enableFaultQueue(true);
 
     opt3001.begin(OPT3001_ADDRESS);
-    // Serial.print("OPT3001 Manufacturer ID");
-    // Serial.println(opt3001.readManufacturerID());
-    // Serial.print("OPT3001 Device ID");
-    // Serial.println(opt3001.readDeviceID());
     configureOPT3001();
 
     if (!ss.begin(SS_ADDRESS)) {
@@ -87,13 +115,13 @@ void setup() {
         printSerial("seesaw started!");
     }
 
-    attachInterrupt(digitalPinToInterrupt(interruptPin),
-                    ext_interrupt,
-                    FALLING);
-    // Create semaphore to inform us when the timer has fired
-    // timerSemaphore = xSemaphoreCreateBinary();
+    // attachInterrupt(digitalPinToInterrupt(interruptPin),
+    //                 ext_interrupt,
+    //                 FALLING);
 
-    // Use 1st timer of 4 (counted from zero).
+    // Create semaphore to inform us when the timer has fired
+    timerSemaphore = xSemaphoreCreateBinary();
+
     // Set 80 divider for prescaler (see ESP32 Technical Reference Manual for
     // more info).
     timer = timerBegin(0, 80, true);
@@ -106,15 +134,19 @@ void setup() {
     timerAlarmWrite(timer, 1000000, true);
 
     // Start an alarm
-    // timerAlarmEnable(timer);
-    showScreen = false;
+    timerAlarmEnable(timer);
+    showScreen = true;
 }
 
 void loop() {
     OPT3001 result = opt3001.readResult();
     soil_temp = ss.getTemp();
-    capread = ss.ss_touchRead(0);
+    soil_humidity = ss.ss_touchRead(0);
     room_temp = lm92.readTemperature();
+
+    // call poll() regularly to allow the library to send MQTT keep alives which
+    // avoids being disconnected by the broker
+    mqttClient.poll();
 
     if (showScreen) {
         display.clearDisplay();
@@ -132,11 +164,28 @@ void loop() {
         display.print("Soil Temp: ");
         display.println(soil_temp);
         display.print("Soil Cap: ");
-        display.println(capread);
+        display.println(soil_humidity);
         display.display();
     } else {
         display.flush();
         display.clearDisplay();
+    }
+
+    if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
+        Serial.print("Sending message to topic: ");
+        Serial.println(topic);
+
+        DynamicJsonDocument doc(256);
+        String payload;
+        doc["room_temperature"] = room_temp;
+        doc["soil_temperature"] = soil_temp;
+        doc["soil_humidity"] = soil_humidity;
+        doc["light"] = result.lux;
+        serializeJson(doc, payload);
+
+        publishTopic(mqttClient, topic, payload);
+        mqttClient.beginMessage(topic);
+        mqttClient.endMessage();
     }
 
     // if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
@@ -200,55 +249,44 @@ void configureOPT3001() {
     if (errorConfig != NO_ERROR)
         printError("OPT3001 configuration", errorConfig);
     else {
-        OPT3001_Config sensorConfig = opt3001.readConfig();
-        printSerial("OPT3001 Current Config:");
-        printSerial("------------------------------");
+        // OPT3001_Config sensorConfig = opt3001.readConfig();
+        // printSerial("OPT3001 Current Config:");
+        // printSerial("------------------------------");
 
-        printSerial("Conversion ready (R):", false);
-        printSerial(sensorConfig.ConversionReady, HEX);
+        // printSerial("Conversion ready (R):", false);
+        // printSerial(sensorConfig.ConversionReady, HEX);
 
-        printSerial("Conversion time (R/W):", false);
-        printSerial(sensorConfig.ConvertionTime, HEX);
+        // printSerial("Conversion time (R/W):", false);
+        // printSerial(sensorConfig.ConvertionTime, HEX);
 
-        printSerial("Fault count field (R/W):", false);
-        printSerial(sensorConfig.FaultCount, HEX);
+        // printSerial("Fault count field (R/W):", false);
+        // printSerial(sensorConfig.FaultCount, HEX);
 
-        printSerial("Flag high field (R-only):", false);
-        printSerial(sensorConfig.FlagHigh, HEX);
+        // printSerial("Flag high field (R-only):", false);
+        // printSerial(sensorConfig.FlagHigh, HEX);
 
-        printSerial("Flag low field (R-only):", false);
-        printSerial(sensorConfig.FlagLow, HEX);
+        // printSerial("Flag low field (R-only):", false);
+        // printSerial(sensorConfig.FlagLow, HEX);
 
-        printSerial("Latch field (R/W):", false);
-        printSerial(sensorConfig.Latch, HEX);
+        // printSerial("Latch field (R/W):", false);
+        // printSerial(sensorConfig.Latch, HEX);
 
-        printSerial("Mask exponent field (R/W):", false);
-        printSerial(sensorConfig.MaskExponent, HEX);
+        // printSerial("Mask exponent field (R/W):", false);
+        // printSerial(sensorConfig.MaskExponent, HEX);
 
-        printSerial("Mode of conversion operation (R/W):", false);
-        printSerial(sensorConfig.ModeOfConversionOperation, HEX);
+        // printSerial("Mode of conversion operation (R/W):", false);
+        // printSerial(sensorConfig.ModeOfConversionOperation, HEX);
 
-        printSerial("Polarity field (R/W):", false);
-        printSerial(sensorConfig.Polarity, HEX);
+        // printSerial("Polarity field (R/W):", false);
+        // printSerial(sensorConfig.Polarity, HEX);
 
-        printSerial("Overflow flag (R-only):", false);
-        printSerial(sensorConfig.OverflowFlag, HEX);
+        // printSerial("Overflow flag (R-only):", false);
+        // printSerial(sensorConfig.OverflowFlag, HEX);
 
-        printSerial("Range number (R/W):", false);
-        printSerial(sensorConfig.RangeNumber, HEX);
+        // printSerial("Range number (R/W):", false);
+        // printSerial(sensorConfig.RangeNumber, HEX);
 
-        printSerial("------------------------------");
-    }
-}
-
-void printResult(String text, OPT3001 result) {
-    if (result.error == NO_ERROR) {
-        printSerial(text, false);
-        printSerial(": ", false);
-        printSerial(result.lux, false);
-        printSerial(" lux");
-    } else {
-        printError(text, result.error);
+        // printSerial("------------------------------");
     }
 }
 
