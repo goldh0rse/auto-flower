@@ -22,5 +22,6 @@
 // Functions
 void printError(String text, OPT3001_ErrorCode error);
 void configureOPT3001(void);
+bool checkEnv(void);
 
 #endif

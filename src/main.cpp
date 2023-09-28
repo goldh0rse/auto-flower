@@ -9,94 +9,32 @@ ClosedCube_OPT3001 opt3001;
 hw_timer_t *timer = NULL;
 volatile SemaphoreHandle_t timerSemaphore;
 volatile double room_temp;
-volatile uint16_t capread;
+volatile uint16_t soil_humidity;
 volatile float soil_temp;
-volatile bool showScreen;
-byte interruptPin = 2;
-
-WiFiClient wifiClient;
-MqttClient mqttClient(wifiClient);
 
 const char broker[] = "test.mosquitto.org";
 int port = 1883;
 const char topic[] = "arduino/simple";
 
-const long interval = 1000;
-unsigned long previousMillis = 0;
-
-void ARDUINO_ISR_ATTR onTimer() {
-    xSemaphoreGiveFromISR(timerSemaphore, NULL);
-
-    // showScreen = false;
-    // timerAlarmDisable(timer);
-}
-
-// External interrupt functin for starting up OLED display
-void ext_interrupt() {
-    timerAlarmEnable(timer);
-    showScreen = true;
-}
+void ARDUINO_ISR_ATTR onTimer() { xSemaphoreGiveFromISR(timerSemaphore, NULL); }
 
 void setup() {
-    // Activate i2c coupling
-    Wire.begin();
-
-    // Activate Oled
-    pinMode(interruptPin, INPUT_PULLUP);
-
 #ifdef DEBUG_MODE
     Serial.begin(9600);
     while (!Serial) delay(10);  // wait until serial port is opened
 #endif
     delay(1000);
-    scanI2CDevices();
+
+    // Check environment
+    if (!checkEnv()) {
+        exit(-1);
+    }
+
+    // Activate i2c coupling
+    Wire.begin();
+
     // Initialize OLED
     initDisplay();
-
-#ifdef WIFI_SSID
-    printSerial("SSID: ", false);
-    printSerial(WIFI_SSID);
-#else
-    // Log error
-    printSerial("SSID not set, exiting program.");
-    exit(-1);
-#endif
-
-#ifdef REST_API
-    printSerial("Rest API Host: ", false);
-    printSerial(REST_API);
-#else
-    // Log error
-    printSerial("No API host provided");
-    exit(-1);
-#endif
-
-#ifdef WIFI_PASSWD
-    printSerial("Password: ", false);
-    printSerial(WIFI_PASSWD);
-#else
-    // Log error
-    printSerial("Password is not set, exiting prgram.");
-    exit(-1);
-#endif
-
-#ifdef MQTT_BROKER
-    printSerial("MQTT broker host", false);
-    printSerial(MQTT_BROKER);
-#else
-    // Log error
-    printSerial("MQTT Host is not set, exiting program.");
-    exit(-1);
-#endif
-
-#ifdef MQTT_PORT
-    printSerial("MQTT broker post", false);
-    printSerial(MQTT_PORT);
-#else
-    // Log error
-    printSerial("MQTT Port is not set, exiting porgram");
-    exit(-1);
-#endif
 
     // Connect to peripherals
     connectWiFi(WIFI_SSID, WIFI_PASSWD);
@@ -106,7 +44,9 @@ void setup() {
     lm92.enableFaultQueue(true);
 
     opt3001.begin(OPT3001_ADDRESS);
-    configureOPT3001();
+    if (!configureOPT3001()) {
+        exit(-1);
+    }
 
     if (!ss.begin(SS_ADDRESS)) {
         printSerial("ERROR! seesaw not found");
@@ -114,10 +54,6 @@ void setup() {
     } else {
         printSerial("seesaw started!");
     }
-
-    // attachInterrupt(digitalPinToInterrupt(interruptPin),
-    //                 ext_interrupt,
-    //                 FALLING);
 
     // Create semaphore to inform us when the timer has fired
     timerSemaphore = xSemaphoreCreateBinary();
@@ -135,7 +71,6 @@ void setup() {
 
     // Start an alarm
     timerAlarmEnable(timer);
-    showScreen = true;
 }
 
 void loop() {
@@ -148,28 +83,23 @@ void loop() {
     // avoids being disconnected by the broker
     mqttClient.poll();
 
-    if (showScreen) {
-        display.clearDisplay();
-        display.setTextColor(WHITE);
-        display.setCursor(0, 0);
-        display.print("LM92: ");
-        display.println(lm92.readTemperature());
-        if (result.error == NO_ERROR) {
-            display.print("OPT3001: ");
-            display.print(result.lux);
-            display.println(" lux");
-        } else {
-            printError("OPT3001", result.error);
-        }
-        display.print("Soil Temp: ");
-        display.println(soil_temp);
-        display.print("Soil Cap: ");
-        display.println(soil_humidity);
-        display.display();
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.print("LM92: ");
+    display.println(lm92.readTemperature());
+    if (result.error == NO_ERROR) {
+        display.print("OPT3001: ");
+        display.print(result.lux);
+        display.println(" lux");
     } else {
-        display.flush();
-        display.clearDisplay();
+        printError("OPT3001", result.error);
     }
+    display.print("Soil Temp: ");
+    display.println(soil_temp);
+    display.print("Soil Cap: ");
+    display.println(soil_humidity);
+    display.display();
 
     if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
         Serial.print("Sending message to topic: ");
@@ -187,54 +117,6 @@ void loop() {
         mqttClient.beginMessage(topic);
         mqttClient.endMessage();
     }
-
-    // if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
-    //     // scanI2CDevices();
-    //     // // Create JSON document
-    //     // DynamicJsonDocument doc(256);
-    //     // String payload;
-    //     // doc["room_temperature"] = room_temp;
-
-    //     // serializeJson(doc, payload);  // Serialize JSON document to
-    //     // String doc.clear();                  // Clear
-    //     // // Send HTTP POST request
-    //     // sendHttpPost(REST_API + "/api/v1/temperature", payload);
-
-    //     // doc["soil_temperature"] = soil_temp;
-    //     // doc["moisture"] = capread;
-    //     // serializeJson(doc, payload);  // Serialize JSON document to
-    //     // String doc.clear();                  // Clear
-    //     // // Send HTTP POST request
-    //     // sendHttpPost(REST_API + "/api/v1/soil", payload);
-
-    //     // doc["lux"] = result.lux;
-    //     // serializeJson(doc, payload);  // Serialize JSON document to
-    //     // String
-    //     // // Send HTTP POST request
-    //     // sendHttpPost(REST_API + "/api/v1/light", payload);
-
-    //     Serial.print("Temp: ");
-    //     Serial.println(room_temp);
-    //     Serial.print("Lux: ");
-    //     Serial.println(result.lux);
-    //     display.clearDisplay();
-    //     display.setTextColor(WHITE);
-    //     display.setCursor(0, 0);
-    //     display.print("LM92: ");
-    //     display.println(lm92.readTemperature());
-    //     if (result.error == NO_ERROR) {
-    //         display.print("OPT3001: ");
-    //         display.print(result.lux);
-    //         display.println(" lux");
-    //     } else {
-    //         printError("OPT3001", result.error);
-    //     }
-    //     display.print("Soil Temp: ");
-    //     display.println(soil_temp);
-    //     display.print("Soil Cap: ");
-    //     display.println(capread);
-    //     display.display();
-    // }
 }
 
 void configureOPT3001() {
@@ -246,52 +128,48 @@ void configureOPT3001() {
     newConfig.ModeOfConversionOperation = B11;
 
     OPT3001_ErrorCode errorConfig = opt3001.writeConfig(newConfig);
-    if (errorConfig != NO_ERROR)
+    if (errorConfig != NO_ERROR) {
         printError("OPT3001 configuration", errorConfig);
-    else {
-        // OPT3001_Config sensorConfig = opt3001.readConfig();
-        // printSerial("OPT3001 Current Config:");
-        // printSerial("------------------------------");
-
-        // printSerial("Conversion ready (R):", false);
-        // printSerial(sensorConfig.ConversionReady, HEX);
-
-        // printSerial("Conversion time (R/W):", false);
-        // printSerial(sensorConfig.ConvertionTime, HEX);
-
-        // printSerial("Fault count field (R/W):", false);
-        // printSerial(sensorConfig.FaultCount, HEX);
-
-        // printSerial("Flag high field (R-only):", false);
-        // printSerial(sensorConfig.FlagHigh, HEX);
-
-        // printSerial("Flag low field (R-only):", false);
-        // printSerial(sensorConfig.FlagLow, HEX);
-
-        // printSerial("Latch field (R/W):", false);
-        // printSerial(sensorConfig.Latch, HEX);
-
-        // printSerial("Mask exponent field (R/W):", false);
-        // printSerial(sensorConfig.MaskExponent, HEX);
-
-        // printSerial("Mode of conversion operation (R/W):", false);
-        // printSerial(sensorConfig.ModeOfConversionOperation, HEX);
-
-        // printSerial("Polarity field (R/W):", false);
-        // printSerial(sensorConfig.Polarity, HEX);
-
-        // printSerial("Overflow flag (R-only):", false);
-        // printSerial(sensorConfig.OverflowFlag, HEX);
-
-        // printSerial("Range number (R/W):", false);
-        // printSerial(sensorConfig.RangeNumber, HEX);
-
-        // printSerial("------------------------------");
+        return false;
     }
+    return true;
 }
 
 void printError(String text, OPT3001_ErrorCode error) {
     printSerial(text, false);
     printSerial(": [ERROR] Code #", false);
     printSerial(F(error));
+}
+
+bool checkEnv(void) {
+#ifndef WIFI_SSID
+    // Log error
+    printSerial("SSID not set, exiting program.");
+    return false;
+#endif
+
+#ifndef REST_API
+    // Log error
+    printSerial("No API host provided");
+    return false;
+#endif
+
+#ifndef WIFI_PASSWD
+    // Log error
+    printSerial("Password is not set, exiting prgram.");
+    return false;
+#endif
+
+#ifndef MQTT_BROKER
+    // Log error
+    printSerial("MQTT Host is not set, exiting program.");
+    return false;
+#endif
+
+#ifndef MQTT_PORT
+    // Log error
+    printSerial("MQTT Port is not set, exiting porgram");
+    return false;
+#endif
+    return true;
 }
