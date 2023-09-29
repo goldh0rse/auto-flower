@@ -12,9 +12,7 @@ volatile double room_temp;
 volatile uint16_t soil_humidity;
 volatile float soil_temp;
 
-const char broker[] = "test.mosquitto.org";
-int port = 1883;
-const char topic[] = "arduino/simple";
+const char topic[] = "home/sensor";
 
 void ARDUINO_ISR_ATTR onTimer() { xSemaphoreGiveFromISR(timerSemaphore, NULL); }
 
@@ -83,23 +81,11 @@ void loop() {
     // avoids being disconnected by the broker
     mqttClient.poll();
 
-    display.clearDisplay();
-    display.setTextColor(WHITE);
-    display.setCursor(0, 0);
-    display.print("LM92: ");
-    display.println(lm92.readTemperature());
     if (result.error == NO_ERROR) {
-        display.print("OPT3001: ");
-        display.print(result.lux);
-        display.println(" lux");
+        displayValues(room_temp, soil_humidity, soil_humidity, result.lux);
     } else {
-        printError("OPT3001", result.error);
+        printError("ERROR READING OPT3001:", result.error);
     }
-    display.print("Soil Temp: ");
-    display.println(soil_temp);
-    display.print("Soil Cap: ");
-    display.println(soil_humidity);
-    display.display();
 
     if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
         Serial.print("Sending message to topic: ");

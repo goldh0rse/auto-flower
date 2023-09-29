@@ -12,3 +12,21 @@ void initDisplay(void) {
 
     display.setRotation(2);
 }
+
+void displayValues(double room_temp,
+                   uint16_t soil_humidity,
+                   float soil_temp,
+                   float lux) {
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.print("LM92: ");
+    display.println(room_temp);
+    display.print("OPT3001: ");
+    display.println(lux);
+    display.print("Soil Temp: ");
+    display.println(soil_temp);
+    display.print("Soil Cap: ");
+    display.println(soil_humidity);
+    display.display();
+}
