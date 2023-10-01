@@ -3,7 +3,7 @@
 hw_timer_t *timer = NULL;
 SemaphoreHandle_t timerSemaphore;
 
-void enableInterruptTimer(void) {
+void enableInterruptTimer(void (*fn)(void)) {
     // Create semaphore to inform us when the timer has fired
     timerSemaphore = xSemaphoreCreateBinary();
 
@@ -12,7 +12,7 @@ void enableInterruptTimer(void) {
     timer = timerBegin(0, 80, true);
 
     // Attach onTimer function to our timer.
-    timerAttachInterrupt(timer, &onTimer, true);
+    timerAttachInterrupt(timer, fn, true);
 
     // Set alarm to call onTimer function every second (value in microseconds).
     // Repeat the alarm (third parameter)

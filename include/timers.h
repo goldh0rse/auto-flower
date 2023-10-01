@@ -1,13 +1,11 @@
 #ifndef TIMERS_H
 #define TIMER_H
 
-#include "main.h"
-
 // Macros
 #define MS_MULTIPLIER 1000000
 
 // Functions
-void enableInterruptTimer(void);
+void enableInterruptTimer(void (*fn)(void));
 
 // Variables
 hw_timer_t *timer;

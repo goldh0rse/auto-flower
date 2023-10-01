@@ -53,7 +53,7 @@ void setup() {
         printSerial("seesaw started!");
     }
 
-    enableInterruptTimer();
+    enableInterruptTimer(&onTimer);
 }
 
 void loop() {
