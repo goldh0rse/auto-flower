@@ -1,4 +1,4 @@
-#include "timers.h"
+#include "localTimers.h"
 
 hw_timer_t *timer = NULL;
 SemaphoreHandle_t timerSemaphore;

@@ -10,7 +10,7 @@
 
 // Functions
 void connectWiFi(String ssid, String passwd);
-void connectMQTTClient(MqttClient client, String broker, int port);
+void connectMQTTClient(MqttClient client, const char *host, uint16_t port);
 void sendHttpPost(String apiUrl, String payload);
 void publishTopic(MqttClient client, String topic, String payload);
 

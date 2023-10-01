@@ -11,8 +11,8 @@
 #include <Wire.h>
 
 #include "display.h"
+#include "localTimers.h"
 #include "server.h"
-#include "timers.h"
 #include "util.h"
 
 // Macros
@@ -22,10 +22,9 @@
 
 // Functions
 void printError(String text, OPT3001_ErrorCode error);
-void configureOPT3001(void);
-bool checkEnv(void);
+bool configureOPT3001(void);
 
 // Variables
-extern SemaphoreHandle_t timerSemaphore;
+// extern SemaphoreHandle_t timerSemaphore;
 
 #endif

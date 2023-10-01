@@ -1,4 +1,5 @@
 #include "util.h"
+
 #include "main.h"
 
 void printSerial(const char *text, bool newLine) {
@@ -82,18 +83,18 @@ void scanI2CDevices(void) {
 
 void writeEEPROMByte(int address, byte data) {
     Wire.beginTransmission(EEPROM_I2C_ADDRESS);
-    Wire.write((int)(address >> 8));   // MSB
-    Wire.write((int)(address & 0xFF)); // LSB
+    Wire.write((int)(address >> 8));    // MSB
+    Wire.write((int)(address & 0xFF));  // LSB
     Wire.write(data);
     Wire.endTransmission();
-    delay(5); // Give EEPROM time to complete the write operation
+    delay(5);  // Give EEPROM time to complete the write operation
 }
 
 byte readEEPROMByte(int address) {
     byte data = 0x00;
     Wire.beginTransmission(EEPROM_I2C_ADDRESS);
-    Wire.write((int)(address >> 8));   // MSB
-    Wire.write((int)(address & 0xFF)); // LSB
+    Wire.write((int)(address >> 8));    // MSB
+    Wire.write((int)(address & 0xFF));  // LSB
     Wire.endTransmission();
     Wire.requestFrom(EEPROM_I2C_ADDRESS, 1);
     if (Wire.available()) {
@@ -104,7 +105,7 @@ byte readEEPROMByte(int address) {
 
 void writeErrorLog(int logIndex, const String &error) {
     if (logIndex >= MAX_LOG_ENTRIES) {
-        return; // Don't exceed max log entries
+        return;  // Don't exceed max log entries
     }
     int baseAddress = logIndex * PAGE_SIZE;
     for (int i = 0; i < error.length(); ++i) {
@@ -114,7 +115,7 @@ void writeErrorLog(int logIndex, const String &error) {
 
 String readErrorLog(int logIndex) {
     if (logIndex >= MAX_LOG_ENTRIES) {
-        return ""; // Don't exceed max log entries
+        return "";  // Don't exceed max log entries
     }
     int baseAddress = logIndex * PAGE_SIZE;
     String error = "";
@@ -122,9 +123,48 @@ String readErrorLog(int logIndex) {
     for (int i = 0; i < PAGE_SIZE; ++i) {
         c = readEEPROMByte(baseAddress + i);
         if (c == '\0') {
-            break; // Null terminator, end of string
+            break;  // Null terminator, end of string
         }
         error += c;
     }
     return error;
+}
+
+bool checkEnv(void) {
+#ifndef WIFI_SSID
+    // Log error
+    printSerial("SSID not set, exiting program.");
+    return false;
+#endif
+
+#ifndef REST_API
+    // Log error
+    printSerial("No API host provided");
+    return false;
+#endif
+
+#ifndef WIFI_PASSWD
+    // Log error
+    printSerial("Password is not set, exiting prgram.");
+    return false;
+#endif
+
+#ifndef MQTT_BROKER
+    // Log error
+    printSerial("MQTT Host is not set, exiting program.");
+    return false;
+#endif
+
+#ifndef MQTT_PORT
+    // Log error
+    printSerial("MQTT Port is not set, exiting porgram");
+    return false;
+#endif
+    return true;
+}
+
+void printError(String text, OPT3001_ErrorCode error) {
+    printSerial(text, false);
+    printSerial(": [ERROR] Code #", false);
+    printSerial(F(error));
 }

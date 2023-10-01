@@ -36,7 +36,7 @@ void setup() {
 
     // Connect to peripherals
     connectWiFi(WIFI_SSID, WIFI_PASSWD);
-    connectMQTTClient(mqttClient, MQTT_BROKER, MQTT_PORT.toInt());
+    connectMQTTClient(mqttClient, MQTT_BROKER, strtoul(MQTT_PORT, NULL, 10));
 
     lm92.ResultInCelsius = true;
     lm92.enableFaultQueue(true);
@@ -85,12 +85,10 @@ void loop() {
         serializeJson(doc, payload);
 
         publishTopic(mqttClient, topic, payload);
-        mqttClient.beginMessage(topic);
-        mqttClient.endMessage();
     }
 }
 
-void configureOPT3001() {
+bool configureOPT3001(void) {
     OPT3001_Config newConfig;
 
     newConfig.RangeNumber = B1100;
@@ -103,44 +101,5 @@ void configureOPT3001() {
         printError("OPT3001 configuration", errorConfig);
         return false;
     }
-    return true;
-}
-
-void printError(String text, OPT3001_ErrorCode error) {
-    printSerial(text, false);
-    printSerial(": [ERROR] Code #", false);
-    printSerial(F(error));
-}
-
-bool checkEnv(void) {
-#ifndef WIFI_SSID
-    // Log error
-    printSerial("SSID not set, exiting program.");
-    return false;
-#endif
-
-#ifndef REST_API
-    // Log error
-    printSerial("No API host provided");
-    return false;
-#endif
-
-#ifndef WIFI_PASSWD
-    // Log error
-    printSerial("Password is not set, exiting prgram.");
-    return false;
-#endif
-
-#ifndef MQTT_BROKER
-    // Log error
-    printSerial("MQTT Host is not set, exiting program.");
-    return false;
-#endif
-
-#ifndef MQTT_PORT
-    // Log error
-    printSerial("MQTT Port is not set, exiting porgram");
-    return false;
-#endif
     return true;
 }

@@ -2,7 +2,10 @@
 #define UTIL_H
 
 #include <Arduino.h>
+#include <ClosedCube_OPT3001.h>
 #include <Wire.h>
+
+#include "main.h"
 
 #define EEPROM_I2C_ADDRESS 0x50  // Replace with your EEPROM's I2C address
 #define PAGE_SIZE 128            // The page size for 24AA1026 is 128 bytes
@@ -19,5 +22,6 @@ void writeEEPROMByte(int address, byte data);
 byte readEEPROMByte(int address);
 void writeErrorLog(int logIndex, const String &error);
 String readErrorLog(int logIndex);
-
+bool checkEnv(void);
+void printError(String text, OPT3001_ErrorCode error);
 #endif

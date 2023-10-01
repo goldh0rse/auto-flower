@@ -13,13 +13,13 @@ void connectWiFi(String ssid, String passwd) {
     Serial.println();
 }
 
-void connectMQTTClient(MqttClient client, String broker, int port) {
+void connectMQTTClient(MqttClient client, const char *host, uint16_t port) {
     Serial.print("Attempting to connect to the MQTT broker: ");
-    Serial.println(broker);
+    Serial.println(host);
 
-    if (!client.connect(broker, port)) {
+    if (!client.connect(host, port)) {
         Serial.print("MQTT connection failed! Error code = ");
-        Serial.println(mqttClient.connectError());
+        Serial.println(client.connectError());
 
         while (1)
             ;
