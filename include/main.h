@@ -12,6 +12,7 @@
 
 #include "display.h"
 #include "server.h"
+#include "timers.h"
 #include "util.h"
 
 // Macros
@@ -23,5 +24,8 @@
 void printError(String text, OPT3001_ErrorCode error);
 void configureOPT3001(void);
 bool checkEnv(void);
+
+// Variables
+extern SemaphoreHandle_t timerSemaphore;
 
 #endif

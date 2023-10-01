@@ -6,8 +6,8 @@ Adafruit_seesaw ss;
 LM92 lm92;
 ClosedCube_OPT3001 opt3001;
 
-hw_timer_t *timer = NULL;
-volatile SemaphoreHandle_t timerSemaphore;
+// hw_timer_t *timer = NULL;
+// volatile SemaphoreHandle_t timerSemaphore;
 volatile double room_temp;
 volatile uint16_t soil_humidity;
 volatile float soil_temp;
@@ -20,8 +20,8 @@ void setup() {
 #ifdef DEBUG_MODE
     Serial.begin(9600);
     while (!Serial) delay(10);  // wait until serial port is opened
-#endif
     delay(1000);
+#endif
 
     // Check environment
     if (!checkEnv()) {
@@ -53,22 +53,7 @@ void setup() {
         printSerial("seesaw started!");
     }
 
-    // Create semaphore to inform us when the timer has fired
-    timerSemaphore = xSemaphoreCreateBinary();
-
-    // Set 80 divider for prescaler (see ESP32 Technical Reference Manual for
-    // more info).
-    timer = timerBegin(0, 80, true);
-
-    // Attach onTimer function to our timer.
-    timerAttachInterrupt(timer, &onTimer, true);
-
-    // Set alarm to call onTimer function every second (value in microseconds).
-    // Repeat the alarm (third parameter)
-    timerAlarmWrite(timer, 1000000, true);
-
-    // Start an alarm
-    timerAlarmEnable(timer);
+    enableInterruptTimer();
 }
 
 void loop() {
