@@ -16,7 +16,7 @@ void enableInterruptTimer(void (*fn)(void)) {
 
     // Set alarm to call onTimer function every second (value in microseconds).
     // Repeat the alarm (third parameter)
-    timerAlarmWrite(timer, 1 * MS_MULTIPLIER, true);
+    timerAlarmWrite(timer, 60 * 5 * MS_MULTIPLIER, true);
 
     // Start an alarm
     timerAlarmEnable(timer);

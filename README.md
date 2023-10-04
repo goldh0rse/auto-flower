@@ -16,4 +16,5 @@ It also serves as a data source for various backend rest api projects and ETL pi
 - [ ] Research SSH access to read error logs
 - [ ] Unit-testing
 - [ ] Documentation
+- [ ] Remove printouts
 - [ ] Cool startup screen

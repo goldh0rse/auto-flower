@@ -1,33 +1,31 @@
 #include "server.h"
 
 void connectWiFi(String ssid, String passwd) {
-    Serial.print("Attempting to connect to WPA SSID: ");
-    Serial.println(ssid);
+    printSerial("Attempting to connect to WPA SSID: ", false);
+    printSerial(ssid);
     WiFi.begin(ssid, passwd);
 
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial.print(".");
+        printSerial(".", false);
     };
 
-    Serial.println("You're connected to the network");
-    Serial.println();
+    printSerial("You're connected to the network");
 }
 
 void connectMQTTClient(MqttClient client, const char *host, uint16_t port) {
-    Serial.print("Attempting to connect to the MQTT broker: ");
-    Serial.println(host);
+    printSerial("Attempting to connect to the MQTT broker: ", false);
+    printSerial(host);
 
     if (!client.connect(host, port)) {
-        Serial.print("MQTT connection failed! Error code = ");
-        Serial.println(client.connectError());
+        printSerial("MQTT connection failed! Error code = ", false);
+        printSerial(client.connectError());
 
         while (1)
             ;
     }
 
-    Serial.println("You're connected to the MQTT broker!");
-    Serial.println();
+    printSerial("You're connected to the MQTT broker!");
 }
 
 void sendHttpPost(String apiUrl, String payload) {

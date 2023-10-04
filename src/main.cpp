@@ -1,18 +1,16 @@
 #include "main.h"
 
-// WiFiClient wifiClient;
-// MqttClient mqttClient(wifiClient);
+WiFiClient wifiClient;
+MqttClient mqttClient(wifiClient);
 Adafruit_seesaw ss;
 LM92 lm92;
 ClosedCube_OPT3001 opt3001;
 
-// hw_timer_t *timer = NULL;
-// volatile SemaphoreHandle_t timerSemaphore;
 volatile double room_temp;
 volatile uint16_t soil_humidity;
 volatile float soil_temp;
 
-const char topic[] = "home/sensor";
+const char topic[] = "home/sensors";
 
 void ARDUINO_ISR_ATTR onTimer() { xSemaphoreGiveFromISR(timerSemaphore, NULL); }
 
@@ -36,8 +34,7 @@ void setup() {
 
     // Connect to peripherals
     connectWiFi(WIFI_SSID, WIFI_PASSWD);
-    while (true) delay(1000);
-    // connectMQTTClient(mqttClient, MQTT_BROKER, strtoul(MQTT_PORT, NULL, 10));
+    connectMQTTClient(mqttClient, MQTT_BROKER, strtoul(MQTT_PORT, NULL, 10));
 
     lm92.ResultInCelsius = true;
     lm92.enableFaultQueue(true);
@@ -65,17 +62,17 @@ void loop() {
 
     // call poll() regularly to allow the library to send MQTT keep alives which
     // avoids being disconnected by the broker
-    // mqttClient.poll();
+    mqttClient.poll();
 
     if (result.error == NO_ERROR) {
-        displayValues(room_temp, soil_humidity, soil_humidity, result.lux);
+        displayValues(room_temp, soil_temp, soil_humidity, result.lux);
     } else {
         printError("ERROR READING OPT3001:", result.error);
     }
 
     if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
-        Serial.print("Sending message to topic: ");
-        Serial.println(topic);
+        // Serial.print("Sending message to topic: ");
+        // Serial.println(topic);
 
         DynamicJsonDocument doc(256);
         String payload;
@@ -85,7 +82,7 @@ void loop() {
         doc["light"] = result.lux;
         serializeJson(doc, payload);
 
-        // publishTopic(mqttClient, topic, payload);
+        publishTopic(mqttClient, topic, payload);
     }
 }
 
