@@ -2,12 +2,13 @@
 
 void connectWiFi(String ssid, String passwd) {
     Serial.print("Attempting to connect to WPA SSID: ");
-    Serial.println(WIFI_SSID);
-    while (WiFi.begin(WIFI_SSID, WIFI_PASSWD) != WL_CONNECTED) {
-        // failed, retry
+    Serial.println(ssid);
+    WiFi.begin(ssid, passwd);
+
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
         Serial.print(".");
-        delay(1000);
-    }
+    };
 
     Serial.println("You're connected to the network");
     Serial.println();

@@ -1,7 +1,7 @@
 #include "main.h"
 
-WiFiClient wifiClient;
-MqttClient mqttClient(wifiClient);
+// WiFiClient wifiClient;
+// MqttClient mqttClient(wifiClient);
 Adafruit_seesaw ss;
 LM92 lm92;
 ClosedCube_OPT3001 opt3001;
@@ -36,7 +36,8 @@ void setup() {
 
     // Connect to peripherals
     connectWiFi(WIFI_SSID, WIFI_PASSWD);
-    connectMQTTClient(mqttClient, MQTT_BROKER, strtoul(MQTT_PORT, NULL, 10));
+    while (true) delay(1000);
+    // connectMQTTClient(mqttClient, MQTT_BROKER, strtoul(MQTT_PORT, NULL, 10));
 
     lm92.ResultInCelsius = true;
     lm92.enableFaultQueue(true);
@@ -64,7 +65,7 @@ void loop() {
 
     // call poll() regularly to allow the library to send MQTT keep alives which
     // avoids being disconnected by the broker
-    mqttClient.poll();
+    // mqttClient.poll();
 
     if (result.error == NO_ERROR) {
         displayValues(room_temp, soil_humidity, soil_humidity, result.lux);
@@ -84,7 +85,7 @@ void loop() {
         doc["light"] = result.lux;
         serializeJson(doc, payload);
 
-        publishTopic(mqttClient, topic, payload);
+        // publishTopic(mqttClient, topic, payload);
     }
 }
 
