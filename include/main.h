@@ -22,9 +22,8 @@
 
 // Functions
 void printError(String text, OPT3001_ErrorCode error);
+void enablePeripherals(void);
+void configureLM92(void);
 bool configureOPT3001(void);
-
-// Variables
-// extern SemaphoreHandle_t timerSemaphore;
 
 #endif

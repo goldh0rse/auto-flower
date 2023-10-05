@@ -23,33 +23,15 @@ void setup() {
 
     // Check environment
     if (!checkEnv()) {
+        // Environment wasn't hasn't been setup correctly
         exit(-1);
     }
 
     // Activate i2c coupling
     Wire.begin();
 
-    // Initialize OLED
-    initDisplay();
-
-    // Connect to peripherals
-    connectWiFi(WIFI_SSID, WIFI_PASSWD);
-    connectMQTTClient(mqttClient, MQTT_BROKER, strtoul(MQTT_PORT, NULL, 10));
-
-    lm92.ResultInCelsius = true;
-    lm92.enableFaultQueue(true);
-
-    opt3001.begin(OPT3001_ADDRESS);
-    if (!configureOPT3001()) {
-        exit(-1);
-    }
-
-    if (!ss.begin(SS_ADDRESS)) {
-        printSerial("ERROR! seesaw not found");
-        while (1) delay(1);
-    } else {
-        printSerial("seesaw started!");
-    }
+    // Connect peripherals
+    enablePeripherals();
 
     enableInterruptTimer(&onTimer);
 }
@@ -71,8 +53,8 @@ void loop() {
     }
 
     if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
-        // Serial.print("Sending message to topic: ");
-        // Serial.println(topic);
+        Serial.print("Sending message to topic: ");
+        Serial.println(topic);
 
         DynamicJsonDocument doc(256);
         String payload;
@@ -86,7 +68,33 @@ void loop() {
     }
 }
 
+void enablePeripherals(void) {
+    initDisplay();
+
+    connectWiFi(WIFI_SSID, WIFI_PASSWD);
+    connectMQTTClient(mqttClient, MQTT_BROKER, strtoul(MQTT_PORT, NULL, 10));
+
+    configureLM92();
+
+    if (!configureOPT3001()) {
+        exit(-1);
+    }
+
+    if (!ss.begin(SS_ADDRESS)) {
+        printSerial("ERROR! seesaw not found");
+        while (1) delay(1);
+    } else {
+        printSerial("seesaw started!");
+    }
+}
+
+void configureLM92(void) {
+    lm92.ResultInCelsius = true;
+    lm92.enableFaultQueue(true);
+}
+
 bool configureOPT3001(void) {
+    opt3001.begin(OPT3001_ADDRESS);
     OPT3001_Config newConfig;
 
     newConfig.RangeNumber = B1100;

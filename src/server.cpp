@@ -3,6 +3,7 @@
 void connectWiFi(String ssid, String passwd) {
     printSerial("Attempting to connect to WPA SSID: ", false);
     printSerial(ssid);
+
     WiFi.begin(ssid, passwd);
 
     while (WiFi.status() != WL_CONNECTED) {

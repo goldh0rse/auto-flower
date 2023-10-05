@@ -13,6 +13,10 @@ void initDisplay(void) {
     display.setRotation(2);
 }
 
+void displayWakeUp(void) { display.ssd1306_command(SSD1306_DISPLAYON); }
+
+void displaySleep(void) { display.ssd1306_command(SSD1306_DISPLAYOFF); }
+
 void displayValues(double room_temp,
                    uint16_t soil_humidity,
                    float soil_temp,
