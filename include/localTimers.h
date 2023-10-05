@@ -3,9 +3,6 @@
 
 #include <Arduino.h>
 
-// Macros
-#define MS_MULTIPLIER 1000000
-
 // Functions
 void enableInterruptTimer(void (*fn)(void));
 

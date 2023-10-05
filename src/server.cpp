@@ -39,12 +39,12 @@ void sendHttpPost(String apiUrl, String payload) {
     if (httpResponseCode > 0) {
         String response = http.getString();
 
-        Serial.println(httpResponseCode);
-        Serial.println(response);
+        printSerial(httpResponseCode);
+        printSerial(response);
     } else {
         // TODO: Error logging
-        Serial.print("Error on sending POST: ");
-        Serial.println(httpResponseCode);
+        printSerial("Error on sending POST: ", false);
+        printSerial(httpResponseCode);
     }
 
     http.end();
