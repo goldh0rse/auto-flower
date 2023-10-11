@@ -9,10 +9,26 @@ ClosedCube_OPT3001 opt3001;
 volatile double room_temp;
 volatile uint16_t soil_humidity;
 volatile float soil_temp;
+OPT3001 opt;
 
 const char topic[] = "home/sensors";
 
-void ARDUINO_ISR_ATTR onTimer() { xSemaphoreGiveFromISR(timerSemaphore, NULL); }
+void ARDUINO_ISR_ATTR publishToTopicTimer() {
+    xSemaphoreGiveFromISR(timerSemaphore, NULL);
+}
+
+void ARDUINO_ISR_ATTR readDataTimer() {
+    opt = opt3001.readResult();
+    soil_temp = ss.getTemp();
+    soil_humidity = ss.ss_touchRead(0);
+    room_temp = lm92.readTemperature();
+
+    if (opt.error == NO_ERROR) {
+        displayValues(room_temp, soil_humidity, soil_humidity, opt.lux);
+    } else {
+        // printError("ERROR READING OPT3001:", opt.error);
+    }
+}
 
 void setup() {
 #ifdef DEBUG_MODE
@@ -33,36 +49,45 @@ void setup() {
     // Connect peripherals
     enablePeripherals();
 
-    enableInterruptTimer(&onTimer);
+    // enableReadSensorsInterruptTimer(&readDataTimer);
+    enableSendTopicInterruptTimer(&publishToTopicTimer);
 }
 
 void loop() {
-    OPT3001 result = opt3001.readResult();
+    delay(500);
+    opt = opt3001.readResult();
     soil_temp = ss.getTemp();
     soil_humidity = ss.ss_touchRead(0);
     room_temp = lm92.readTemperature();
+
+    if (opt.error == NO_ERROR) {
+        displayValues(room_temp, soil_humidity, soil_temp, opt.lux);
+    } else {
+        printError("ERROR READING OPT3001:", opt.error);
+    }
 
     // call poll() regularly to allow the library to send MQTT keep alives which
     // avoids being disconnected by the broker
     mqttClient.poll();
 
-    if (result.error == NO_ERROR) {
-        displayValues(room_temp, soil_temp, soil_humidity, result.lux);
+    if (opt.error == NO_ERROR) {
+        displayValues(room_temp, soil_humidity, soil_humidity, opt.lux);
     } else {
-        printError("ERROR READING OPT3001:", result.error);
+        printError("ERROR READING OPT3001:", opt.error);
     }
 
     if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
-        Serial.print("Sending message to topic: ");
-        Serial.println(topic);
+        printSerial("Sending message to topic: ", false);
+        printSerial(topic);
 
         DynamicJsonDocument doc(256);
         String payload;
         doc["room_temperature"] = room_temp;
         doc["soil_temperature"] = soil_temp;
         doc["soil_humidity"] = soil_humidity;
-        doc["light"] = result.lux;
+        doc["light"] = opt.lux;
         serializeJson(doc, payload);
+        printSerial(payload);
 
         publishTopic(mqttClient, topic, payload);
     }
