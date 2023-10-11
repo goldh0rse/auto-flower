@@ -70,12 +70,6 @@ void loop() {
     // avoids being disconnected by the broker
     mqttClient.poll();
 
-    if (opt.error == NO_ERROR) {
-        displayValues(room_temp, soil_humidity, soil_humidity, opt.lux);
-    } else {
-        printError("ERROR READING OPT3001:", opt.error);
-    }
-
     if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
         printSerial("Sending message to topic: ", false);
         printSerial(topic);
