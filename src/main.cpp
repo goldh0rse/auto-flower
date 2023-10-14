@@ -1,5 +1,8 @@
 #include "main.h"
 
+RTC_DATA_ATTR int bootCount = 0;
+/* Conversion factor for micro seconds to seconds */
+
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
 Adafruit_seesaw ss;
@@ -17,16 +20,31 @@ void ARDUINO_ISR_ATTR publishToTopicTimer() {
     xSemaphoreGiveFromISR(timerSemaphore, NULL);
 }
 
-void ARDUINO_ISR_ATTR readDataTimer() {
-    opt = opt3001.readResult();
-    soil_temp = ss.getTemp();
-    soil_humidity = ss.ss_touchRead(0);
-    room_temp = lm92.readTemperature();
+void print_wakeup_reason() {
+    esp_sleep_wakeup_cause_t wakeup_reason;
 
-    if (opt.error == NO_ERROR) {
-        displayValues(room_temp, soil_humidity, soil_humidity, opt.lux);
-    } else {
-        // printError("ERROR READING OPT3001:", opt.error);
+    wakeup_reason = esp_sleep_get_wakeup_cause();
+
+    switch (wakeup_reason) {
+        case ESP_SLEEP_WAKEUP_EXT0:
+            printSerial("Wakeup caused by external signal using RTC_IO");
+            break;
+        case ESP_SLEEP_WAKEUP_EXT1:
+            printSerial("Wakeup caused by external signal using RTC_CNTL");
+            break;
+        case ESP_SLEEP_WAKEUP_TIMER:
+            printSerial("Wakeup caused by timer");
+            break;
+        case ESP_SLEEP_WAKEUP_TOUCHPAD:
+            printSerial("Wakeup caused by touchpad");
+            break;
+        case ESP_SLEEP_WAKEUP_ULP:
+            printSerial("Wakeup caused by ULP program");
+            break;
+        default:
+            printSerial("Wakeup was not caused by deep sleep: ", false);
+            printSerial(wakeup_reason);
+            break;
     }
 }
 
@@ -43,52 +61,42 @@ void setup() {
         exit(-1);
     }
 
+    // Increment boot number and print it every reboot
+    ++bootCount;
+    Serial.println("Boot number: " + String(bootCount));
+
+    // Print the wakeup reason for ESP32
+    print_wakeup_reason();
+
+    /*
+    First we configure the wake up source
+    We set our ESP32 to wake up every 5 seconds
+    */
+    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+    printSerial("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) +
+                " Seconds");
     // Activate i2c coupling
     Wire.begin();
 
     // Connect peripherals
     enablePeripherals();
 
-    // enableReadSensorsInterruptTimer(&readDataTimer);
-    enableSendTopicInterruptTimer(&publishToTopicTimer);
+    // Read sensor-data
+    readSensors();
+
+    // Send data to MQTT broker
+    sendDataToBroker(room_temp, soil_temp, soil_humidity, opt.lux);
+    delay(1000);
+    printSerial("Going to sleep now");
+    Serial.flush();
+    esp_deep_sleep_start();
+    // We will never reach this space
 }
 
-void loop() {
-    delay(500);
-    opt = opt3001.readResult();
-    soil_temp = ss.getTemp();
-    soil_humidity = ss.ss_touchRead(0);
-    room_temp = lm92.readTemperature();
-
-    if (opt.error == NO_ERROR) {
-        displayValues(room_temp, soil_humidity, soil_temp, opt.lux);
-    } else {
-        printError("ERROR READING OPT3001:", opt.error);
-    }
-
-    // call poll() regularly to allow the library to send MQTT keep alives which
-    // avoids being disconnected by the broker
-    mqttClient.poll();
-
-    if (xSemaphoreTake(timerSemaphore, 0) == pdTRUE) {
-        printSerial("Sending message to topic: ", false);
-        printSerial(topic);
-
-        DynamicJsonDocument doc(256);
-        String payload;
-        doc["room_temperature"] = room_temp;
-        doc["soil_temperature"] = soil_temp;
-        doc["soil_humidity"] = soil_humidity;
-        doc["light"] = opt.lux;
-        serializeJson(doc, payload);
-        printSerial(payload);
-
-        publishTopic(mqttClient, topic, payload);
-    }
-}
+void loop() {}
 
 void enablePeripherals(void) {
-    initDisplay();
+    // initDisplay();
 
     connectWiFi(WIFI_SSID, WIFI_PASSWD);
     connectMQTTClient(mqttClient, MQTT_BROKER, strtoul(MQTT_PORT, NULL, 10));
@@ -127,4 +135,34 @@ bool configureOPT3001(void) {
         return false;
     }
     return true;
+}
+
+void readSensors(void) {
+    printSerial("Reading Sensors");
+    opt = opt3001.readResult();
+    soil_temp = ss.getTemp();
+    soil_humidity = ss.ss_touchRead(0);
+    room_temp = lm92.readTemperature();
+    printSerial("Read sensors");
+}
+
+void sendDataToBroker(double room_temp,
+                      float soil_temp,
+                      float soil_humidity,
+                      float lux) {
+    mqttClient.poll();
+
+    printSerial("Sending message to topic: ", false);
+    printSerial(topic);
+
+    DynamicJsonDocument doc(256);
+    String payload;
+    doc["room_temperature"] = room_temp;
+    doc["soil_temperature"] = soil_temp;
+    doc["soil_humidity"] = soil_humidity;
+    doc["light"] = lux;
+    serializeJson(doc, payload);
+    printSerial(payload);
+
+    publishTopic(mqttClient, topic, payload);
 }
