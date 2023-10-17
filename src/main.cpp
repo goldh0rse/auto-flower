@@ -1,8 +1,5 @@
 #include "main.h"
 
-RTC_DATA_ATTR int bootCount = 0;
-/* Conversion factor for micro seconds to seconds */
-
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
 Adafruit_seesaw ss;
@@ -15,38 +12,6 @@ volatile float soil_temp;
 OPT3001 opt;
 
 const char topic[] = "home/sensors";
-
-void ARDUINO_ISR_ATTR publishToTopicTimer() {
-    xSemaphoreGiveFromISR(timerSemaphore, NULL);
-}
-
-void print_wakeup_reason() {
-    esp_sleep_wakeup_cause_t wakeup_reason;
-
-    wakeup_reason = esp_sleep_get_wakeup_cause();
-
-    switch (wakeup_reason) {
-        case ESP_SLEEP_WAKEUP_EXT0:
-            printSerial("Wakeup caused by external signal using RTC_IO");
-            break;
-        case ESP_SLEEP_WAKEUP_EXT1:
-            printSerial("Wakeup caused by external signal using RTC_CNTL");
-            break;
-        case ESP_SLEEP_WAKEUP_TIMER:
-            printSerial("Wakeup caused by timer");
-            break;
-        case ESP_SLEEP_WAKEUP_TOUCHPAD:
-            printSerial("Wakeup caused by touchpad");
-            break;
-        case ESP_SLEEP_WAKEUP_ULP:
-            printSerial("Wakeup caused by ULP program");
-            break;
-        default:
-            printSerial("Wakeup was not caused by deep sleep: ", false);
-            printSerial(wakeup_reason);
-            break;
-    }
-}
 
 void setup() {
 #ifdef DEBUG_MODE
@@ -61,10 +26,6 @@ void setup() {
         exit(-1);
     }
 
-    // Increment boot number and print it every reboot
-    ++bootCount;
-    Serial.println("Boot number: " + String(bootCount));
-
     // Print the wakeup reason for ESP32
     print_wakeup_reason();
 
@@ -75,6 +36,7 @@ void setup() {
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
     printSerial("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) +
                 " Seconds");
+
     // Activate i2c coupling
     Wire.begin();
 
@@ -165,4 +127,33 @@ void sendDataToBroker(double room_temp,
     printSerial(payload);
 
     publishTopic(mqttClient, topic, payload);
+}
+
+bool print_wakeup_reason(void) {
+    esp_sleep_wakeup_cause_t wakeup_reason;
+
+    wakeup_reason = esp_sleep_get_wakeup_cause();
+
+    switch (wakeup_reason) {
+        case ESP_SLEEP_WAKEUP_EXT0:
+            printSerial("Wakeup caused by external signal using RTC_IO");
+            break;
+        case ESP_SLEEP_WAKEUP_EXT1:
+            printSerial("Wakeup caused by external signal using RTC_CNTL");
+            break;
+        case ESP_SLEEP_WAKEUP_TIMER:
+            printSerial("Wakeup caused by timer");
+            break;
+        case ESP_SLEEP_WAKEUP_TOUCHPAD:
+            printSerial("Wakeup caused by touchpad");
+            break;
+        case ESP_SLEEP_WAKEUP_ULP:
+            printSerial("Wakeup caused by ULP program");
+            break;
+        default:
+            printSerial("Wakeup was not caused by deep sleep: ", false);
+            printSerial(wakeup_reason);
+            break;
+    }
+    return false;
 }

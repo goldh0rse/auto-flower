@@ -32,5 +32,6 @@ void sendDataToBroker(double room_temp,
                       float soil_temp,
                       float soil_humidity,
                       float lux);
+bool print_wakeup_reason(void);
 
 #endif
